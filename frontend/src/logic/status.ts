@@ -12,7 +12,8 @@ export const STATUS_LABEL: Record<StatusKind, string> = {
 };
 
 export function evaluateStatus(value: number | null, t: ParameterThreshold | null | undefined): StatusKind {
-  if (value === null || value === undefined || Number.isNaN(value)) return "no_data";
+  // Missing value => "No Data". Never Safe.
+  if (typeof value !== "number" || !Number.isFinite(value)) return "no_data";
   if (!t) return "no_data";
   const belowSafe = t.safeMin !== null && value < t.safeMin;
   const aboveSafe = t.safeMax !== null && value > t.safeMax;

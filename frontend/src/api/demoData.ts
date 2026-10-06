@@ -69,9 +69,11 @@ export function buildDemoRawReadings(scenario: DemoScenario, now = Date.now()): 
     if (i === 23 || i === 120) r.ph = null;
     if (i === 77) r.dissolved_oxygen_mg_l = null;
     if (scenario === "missing" && i === 0) {
-      r.temperature_c = null;
+      // Latest record: pH and DO missing, temperature present.
+      r.ph = null;
       r.dissolved_oxygen_mg_l = null;
     }
+    if (scenario === "missing" && i === 1) r.temperature_c = null;
     out.push(r);
   }
   return out;

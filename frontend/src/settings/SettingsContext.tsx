@@ -1,6 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, View } from "react-native";
 
 import { DataMode, DemoScenario } from "@/src/models/types";
+import { DEMO_SCENARIOS } from "@/src/settings/scenarios";
+import { useTheme } from "@/src/theme";
 import { storage } from "@/src/utils/storage";
 
 const K_MODE = "aqua.mode";
@@ -19,7 +22,14 @@ interface SettingsValue {
 
 const SettingsContext = createContext<SettingsValue | null>(null);
 
+/**
+ * Settings are hydrated from storage BEFORE any screen renders, so a stored
+ * value can never overwrite a choice the user just made (which previously
+ * could silently flip Real mode back to Demo). Mode only changes when the
+ * user taps the selector; nothing in the app switches it automatically.
+ */
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
+  const { colors } = useTheme();
   const [loaded, setLoaded] = useState(false);
   const [mode, setModeState] = useState<DataMode>("demo");
   const [baseUrl, setUrlState] = useState("");
@@ -27,9 +37,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      setModeState(((await storage.getItem(K_MODE, "demo")) as DataMode) ?? "demo");
-      setUrlState((await storage.getItem(K_URL, "")) ?? "");
-      setScenarioState(((await storage.getItem(K_SCENARIO, "normal")) as DemoScenario) ?? "normal");
+      const m = await storage.getItem(K_MODE, "demo" as string);
+      const u = await storage.getItem(K_URL, "" as string);
+      const s = await storage.getItem(K_SCENARIO, "normal" as string);
+      setModeState(m === "real" ? "real" : "demo");
+      setUrlState(typeof u === "string" ? u : "");
+      setScenarioState(DEMO_SCENARIOS.includes(s as DemoScenario) ? (s as DemoScenario) : "normal");
       setLoaded(true);
     })();
   }, []);
@@ -51,6 +64,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     () => ({ loaded, mode, baseUrl, demoScenario, setMode, setBaseUrl, setDemoScenario }),
     [loaded, mode, baseUrl, demoScenario, setMode, setBaseUrl, setDemoScenario],
   );
+
+  if (!loaded) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator color={colors.brand} />
+      </View>
+    );
+  }
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }
 

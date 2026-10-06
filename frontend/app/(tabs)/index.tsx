@@ -66,7 +66,12 @@ export default function Dashboard() {
 
   return (
     <View testID="dashboard-screen" style={styles.root}>
-      <ScreenHeader eyebrow="AQUA SMART · POND MONITOR" title={pondName} right={<ConnectionBadge state={conn} />} testID="dashboard-header">
+      <ScreenHeader
+        eyebrow={mode === "demo" ? "DEMO MODE · POND MONITOR" : "REAL PI API · POND MONITOR"}
+        title={pondName}
+        right={<ConnectionBadge state={conn} />}
+        testID="dashboard-header"
+      >
         <View style={styles.metaRow}>
           <Clock size={16} color={colors.onSurfaceTertiary} />
           <Text testID="last-updated-text" style={styles.metaText}>

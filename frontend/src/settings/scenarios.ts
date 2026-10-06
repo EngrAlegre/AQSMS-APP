@@ -3,7 +3,7 @@ import { DemoScenario } from "@/src/models/types";
 export const DEMO_SCENARIO_LABEL: Record<DemoScenario, string> = {
   normal: "Normal readings",
   stale: "Stale reading (~50 min old)",
-  missing: "Missing sensor values",
+  missing: "Missing values (pH & DO in latest)",
   unreachable: "Pi unreachable / wrong Wi-Fi",
   malformed: "Malformed Pi response",
   no_alerts: "Empty alert history",

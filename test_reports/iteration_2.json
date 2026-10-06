@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend-only retest of Aqua Smart Monitoring System (Expo web preview, 390x844 mobile viewport). All three previously-flagged bugs are FIXED and verified. Full suite also re-ran: sign-in (wrong creds + demo creds), Dashboard demo normal (eyebrow, banners, sensor cards, Refresh button cycle), History tab (parameter switching, trend-card, trend-stats, 83 history-record-rows), Alerts tab (13 alert rows, alerts-count, sms-note), Settings thresholds (source-label 'Demo thresholds – not approved', 3 threshold rows), six demo scenarios, demo↔real mode switch with reload persistence, URL validation (empty/localhost/public IP), and sign-out after reload. 100% of listed tests pass. Deprecated packages detected: none app-level (only phosphor-react-native internal 'props.pointerEvents is deprecated' warning – non-blocking). SafeAreaView issues detected: none.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard (STALE scenario)", "issues": ["Previously-reported SensorCard STALE pill overlap with value — not re-measured this iteration; sensor-card-*-stale tags render and all values stay readable in snapshots. Main agent may close if intentional."]}
+    ],
+    "react_native_issues": [
+      {"component": "phosphor-react-native icons", "issue": "Dev console warning 'props.pointerEvents is deprecated. Use style.pointerEvents' originating from phosphor-react-native/react-native-svg. Non-blocking. Reference: /var/log/supervisor/expo.out.log"}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_2.json", "/app/test_reports/iteration_1.json"],
+  "action_items": [
+    "Optional: upgrade phosphor-react-native or wrap icons to silence pointerEvents deprecation warning.",
+    "Optional: connection-test-result rendering (connection-test-title) not re-captured in this run because the test moved on before the 6s testPiConnection timeout completed in web preview. Not a regression; iteration_1 already verified web preview fails as expected."
+  ],
+  "critical_code_review_comments": [
+    "SettingsProvider now hydrates from storage before rendering children (SettingsContext.tsx:38-74), eliminating the race that silently reverted mode. Good.",
+    "useModeQuery stamps results with origin mode and drops mismatched values (usePondData.ts:26-44); this cleanly prevents demo data leaking into Real mode and vice-versa.",
+    "Settings.changeMode no longer calls qc.removeQueries (settings.tsx:80-84), relying on the keyed queryKey + origin stamp — correct and simpler.",
+    "demoData.ts missing scenario now nulls pH and DO in the latest record (lines 71-75) while keeping temperature, matching the spec: pH/DO show '--' + 'NO DATA' while temperature retains a computed status.",
+    "AuthContext signOut flow + router.replace('/sign-in') in settings sign-out handler (settings.tsx:258-269) now reliably returns to sign-in and survives page reload."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (all critical flows + previously-failing bugs verified)"},
+  "seed_data_creation": "None — all demo data generated from src/api/demoData.ts.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Mobile viewport 390x844. Login: fill-demo-credentials-button + sign-in-submit-button (farmer/demo1234). Tab testIDs are tab-dashboard | tab-history | tab-alerts | tab-settings (NOT tabs-tab-*). Scenario radios reachable by scroll_into_view_if_needed then click (do NOT use force=True). Real mode in web preview always yields UNREACHABLE after ~6-7s — expected. On fresh page load, dashboard briefly shows CONNECTING + sensor-card skeletons before data arrives — wait ~1.5s. Known non-blocking: phosphor pointerEvents deprecation warning.",
+  "rca_of_issue": "All three fixes from iteration 1 verified in production preview:\n  (1) MISSING scenario: Dashboard shows ph='--' + status 'NO DATA', dissolvedOxygen='--' + 'NO DATA', temperature='27.9' + 'SAFE' numeric. Confirmed demoData.ts:71-75 nulls pH/DO on latest record.\n  (2) Demo→Real switch: Immediately after tapping data-mode-selector-real, Dashboard eyebrow switches to 'REAL PI API · POND MONITOR', demo-mode-banner disappears, badge shows CONNECTING (skeletons visible, zero demo values rendered), and after ~8s badge becomes UNREACHABLE with dashboard-error-banner 'Pi did not respond'. History and Alerts tabs render zero rows and no demo banners. Page reload preserves REAL mode. Switching back via data-mode-selector-demo instantly restores demo data + banners. Fix: SettingsContext hydrates before children render, useModeQuery stamps/drops results by origin mode.\n  (3) Sign-out: Tapping sign-out-button in Settings now routes to sign-in screen; a page reload keeps the user on sign-in; sign-in works again. Fix: router.replace('/sign-in') + qc.removeQueries() in settings.tsx:258-269.\n  Reproduction (all pass): sign in → Settings → scroll to scenario → tap missing → Dashboard shows '--'/NO DATA. Sign in → Settings → save '192.168.1.50:8000' → tap Real → Dashboard shows no demo UI, UNREACHABLE after 7s. Settings → Sign out → reload → still on sign-in."
+}

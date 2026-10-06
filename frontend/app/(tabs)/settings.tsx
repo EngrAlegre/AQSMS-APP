@@ -78,8 +78,9 @@ export default function Settings() {
   };
 
   const changeMode = (m: DataMode) => {
+    // Query keys include the mode, and results are stamped with their origin
+    // (see usePondData), so no cache juggling is needed here.
     setMode(m);
-    qc.removeQueries();
   };
 
   return (

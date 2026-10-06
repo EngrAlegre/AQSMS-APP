@@ -2,8 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { AUTO_REFRESH_MS } from "@/src/config";
-import { createDataSource } from "@/src/api/dataSource";
+import { createDataSource, PondDataSource } from "@/src/api/dataSource";
 import { useAuth } from "@/src/auth/AuthContext";
+import { DataMode } from "@/src/models/types";
 import { useSettings } from "@/src/settings/SettingsContext";
 
 function useSource() {
@@ -14,37 +15,35 @@ function useSource() {
     () => createDataSource({ mode, baseUrl, scenario: demoScenario, token }),
     [mode, baseUrl, demoScenario, token],
   );
-  // Mode/URL/scenario are part of every key so demo data never shows under real mode.
   return { source, key: [mode, baseUrl, demoScenario] as const, loaded, mode };
 }
 
-export function useLatestReading() {
-  const { source, key, loaded } = useSource();
-  return useQuery({
-    queryKey: ["latest", ...key],
-    queryFn: () => source.getLatest(),
-    enabled: loaded,
-    refetchInterval: AUTO_REFRESH_MS,
-    retry: 0,
-  });
-}
-
-export function useThresholds() {
-  const { source, key, loaded } = useSource();
-  return useQuery({
-    queryKey: ["thresholds", ...key],
-    queryFn: () => source.getThresholds(),
+/**
+ * Every result is stamped with the mode that produced it. If the stamp does
+ * not match the current mode, the data is dropped: demo/mock values can never
+ * be shown while Real Pi mode is active (and vice versa).
+ */
+function useModeQuery<T>(name: string, fetcher: (s: PondDataSource) => Promise<T>, refetchInterval?: number) {
+  const { source, key, loaded, mode } = useSource();
+  const q = useQuery({
+    queryKey: [name, ...key],
+    queryFn: async (): Promise<{ origin: DataMode; value: T }> => ({ origin: mode, value: await fetcher(source) }),
     enabled: loaded,
     retry: 0,
+    refetchInterval,
   });
+  const matches = q.data?.origin === mode;
+  return {
+    data: matches ? q.data!.value : undefined,
+    error: q.error,
+    isLoading: q.isLoading || (q.data !== undefined && !matches),
+    isFetching: q.isFetching,
+    dataUpdatedAt: q.dataUpdatedAt,
+    refetch: q.refetch,
+  };
 }
 
-export function useReadingHistory() {
-  const { source, key, loaded } = useSource();
-  return useQuery({ queryKey: ["history", ...key], queryFn: () => source.getHistory(), enabled: loaded, retry: 0 });
-}
-
-export function useAlertHistory() {
-  const { source, key, loaded } = useSource();
-  return useQuery({ queryKey: ["alerts", ...key], queryFn: () => source.getAlerts(), enabled: loaded, retry: 0 });
-}
+export const useLatestReading = () => useModeQuery("latest", (s) => s.getLatest(), AUTO_REFRESH_MS);
+export const useThresholds = () => useModeQuery("thresholds", (s) => s.getThresholds());
+export const useReadingHistory = () => useModeQuery("history", (s) => s.getHistory());
+export const useAlertHistory = () => useModeQuery("alerts", (s) => s.getAlerts());

@@ -23,7 +23,9 @@ export function ScreenHeader({ eyebrow, title, right, children, testID }: Props)
       <WaveDecoration />
       <View style={styles.row}>
         <View style={styles.titles}>
-          <Text style={styles.eyebrow}>{eyebrow}</Text>
+          <Text testID={testID ? `${testID}-eyebrow` : undefined} style={styles.eyebrow}>
+            {eyebrow}
+          </Text>
           <Text style={styles.title} numberOfLines={1}>
             {title}
           </Text>
