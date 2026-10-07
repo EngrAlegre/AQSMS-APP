@@ -1,0 +1,117 @@
+{
+  "app_name": "Aqua Smart Monitoring System",
+  "personality": "7 Dark-First Utility",
+  "personality_one_liner": "A practical, command-center dashboard built for deep-water monitoring with tactical readability and restrained aquatic accents.",
+  "color": {
+    "surface": "#050B14",
+    "onSurface": "#E2E8F0",
+    "surfaceSecondary": "#0A1428",
+    "onSurfaceSecondary": "#CBD5E1",
+    "surfaceTertiary": "#112240",
+    "onSurfaceTertiary": "#94A3B8",
+    "surfaceInverse": "#F8FAFC",
+    "onSurfaceInverse": "#050B14",
+    "brand": "#00E5FF",
+    "onBrand": "#001B24",
+    "brandPrimary": "#00B4D8",
+    "onBrandPrimary": "#001A24",
+    "brandSecondary": "#0077B6",
+    "onBrandSecondary": "#E0F7FA",
+    "brandTertiary": "#004771",
+    "onBrandTertiary": "#80DEEA",
+    "success": "#26A69A",
+    "onSuccess": "#00211D",
+    "warning": "#FFCA28",
+    "onWarning": "#332600",
+    "error": "#FF7043",
+    "onError": "#4A1000",
+    "info": "#29B6F6",
+    "onInfo": "#00253B",
+    "border": "#1A2844",
+    "borderStrong": "#2A3D63",
+    "divider": "#121C33",
+    "muted": "#64748B"
+  },
+  "typography": {
+    "displayFontFamily": "Rajdhani",
+    "textFontFamily": "IBMPlexSans",
+    "scale": { "sm": 12, "base": 14, "lg": 16, "xl": 20, "2xl": 24 }
+  },
+  "spacing": { 
+    "rule": "Dense but legible: use sm/md between related labels/values, and lg/xl between major sections to prevent clutter.",
+    "xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24, "2xl": 32, "3xl": 48 
+  },
+  "radius_tokens": { "sm": 6, "md": 12, "lg": 20, "pill": 999 },
+  "shadow_tier": "0",
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": false,
+    "do's": ["Use solid surfaceSecondary with dividers for high-contrast clarity on dense data screens."],
+    "dont's": ["Do not use blur or glassmorphism, as it reduces performance and tactical clarity."]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "solid surfaceSecondary",
+      "android": "solid surfaceSecondary",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    { 
+      "name": "SignIn", 
+      "purpose": "Simple local-account sign-in with clearly labeled demo credentials (mock auth).", 
+      "states": { "loading": "Centered spinner", "empty": "N/A", "error": "Invalid demo credentials message." }, 
+      "layout": "Full-bleed background image with heavy bottom-to-top gradient scrim (surface color to transparent). Centered login card at the bottom 40% containing pre-filled inputs and sign-in button."
+    },
+    { 
+      "name": "Dashboard", 
+      "purpose": "Live Sensor Dashboard displaying pond name, connection state, last-updated time, and large sensor-value cards.", 
+      "states": { "loading": "Skeleton cards for metrics", "empty": "No connection illustration with retry button", "error": "Server unreachable banner with manual refresh." }, 
+      "layout": "Vertical scroll. Top: Sticky Header with Pond Name and live connection badge. Below Header: Last updated timestamp. Main Area: 3 stacked large KPI cards for pH, Temperature, DO. Each card shows the metric name, massive value in Rajdhani, unit, and a colored status chip (Safe/Warning/Unsafe/No Data). Bottom: Sticky Manual Refresh button."
+    },
+    { 
+      "name": "History", 
+      "purpose": "Reading history showing timestamped records with a simple trend view.", 
+      "states": { "loading": "List skeletons", "empty": "Empty state illustration: No historical data available.", "error": "Error fetching history banner." }, 
+      "layout": "Top: Segmented control to pick parameter (pH/Temp/DO). Middle: Simple trend line chart or bar representation (can be mocked with colored blocks if actual chart library is missing, or use a lightweight SVG chart). Bottom: Scrollable list of timestamped records."
+    },
+    { 
+      "name": "Alerts", 
+      "purpose": "Alert history displaying timestamp, parameter, measured value, threshold/status, and message.", 
+      "states": { "loading": "List skeletons", "empty": "Green checkmark icon / illustration: No active alerts. All systems safe.", "error": "Error fetching alerts." }, 
+      "layout": "List view. Each row uses surfaceSecondary background, left border colored by alert severity (Warning = Amber, Unsafe = Coral). Includes timestamp (muted text), parameter name, large value vs threshold text, and description."
+    },
+    { 
+      "name": "Settings", 
+      "purpose": "Settings with connection test, Demo mode toggle, API address input, and read-only thresholds.", 
+      "states": { "loading": "Spinner during connection test", "empty": "N/A", "error": "Toast/Snackbar for failed connection test." }, 
+      "layout": "Form layout with grouped sections using dividers. Section 1: Connection (Local IP input, Test button, network warning text). Section 2: Mode (Demo/Real toggle, Demo badge). Section 3: Read-only thresholds list (labeled 'Demo thresholds – not approved')."
+    }
+  ],
+  "images": {
+    "signin_hero": { 
+      "url": "https://images.unsplash.com/photo-1559825477-6f38d6332bb6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwxfHxkYXJrJTIwdW5kZXJ3YXRlciUyMHJpcHBsZXN8ZW58MHx8fHwxNzkxMzAyMzc1fDA&ixlib=rb-4.1.0&q=85", 
+      "alt": "Dark underwater ripples background" 
+    },
+    "empty_alerts": {
+      "url": "https://images.pexels.com/photos/35686440/pexels-photo-35686440.jpeg",
+      "alt": "Sensor module indicating no active alerts"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the Dark-First Utility guidelines. The app should feel like a tactical command center.",
+    "No glassmorphism. Use solid surfaceSecondary colors with 1pt borders/dividers to create elevation and structure.",
+    "Ensure 'Rajdhani' font is used for all large metric numbers and ensure tabularNums is set on Text components so the numbers do not jump around as they update.",
+    "Implement the gradient scrim over the SignIn hero image (Layer 0 = expo-image, Layer 1 = vertical gradient from transparent to 90% surface, Layer 2 = form content at the bottom 40%).",
+    "Sensor values must clearly show 'Demo mode' and 'not approved' if toggled. Use coral/amber appropriately for Warning and Unsafe states.",
+    "For the History Screen trend view, prioritize a simple, readable format without decorative animations.",
+    "Use Phosphor icons consistently (either all filled or all regular weight).",
+    "Avoid unnecessary animations to ensure metrics are easily readable."
+  ]
+}
