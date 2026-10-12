@@ -4,12 +4,25 @@ export class ApiError extends Error {
   kind: ApiErrorKind;
   title: string;
   status?: number;
+  /** The Pi's own {"error": "..."} text, when it sent one. */
+  serverMessage?: string;
+  /** The Pi's machine-readable {"code": "..."}, e.g. "registration_closed". */
+  code?: string;
 
-  constructor(kind: ApiErrorKind, title: string, message: string, status?: number) {
+  constructor(
+    kind: ApiErrorKind,
+    title: string,
+    message: string,
+    status?: number,
+    serverMessage?: string,
+    code?: string,
+  ) {
     super(message);
     this.kind = kind;
     this.title = title;
     this.status = status;
+    this.serverMessage = serverMessage;
+    this.code = code;
   }
 }
 

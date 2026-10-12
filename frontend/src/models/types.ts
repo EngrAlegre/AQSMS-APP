@@ -55,9 +55,41 @@ export interface ConnectionTestResult {
   detail: string;
 }
 
+/**
+ * The two roles the Pi can return. There is exactly one `owner` account, fixed
+ * and provisioned on the Pi; everything else is a `caretaker`.
+ *
+ * These are the only accepted values. Anything else -- a missing field, a typo,
+ * a role a future server invents -- is refused at the API boundary rather than
+ * defaulted, because defaulting is how a phone ends up showing owner screens to
+ * a caretaker.
+ */
+export type UserRole = "owner" | "caretaker";
+
+/** `disabled` accounts are refused by the Pi on every request. */
+export type AccountStatus = "active" | "disabled";
+
 export interface Session {
   username: string;
   displayName: string;
   provider: "pi";
   token: string | null;
+  /**
+   * Role and status as reported by the Pi at sign-in, or by /auth/me when a
+   * saved session is restored. They drive which screens exist for this user.
+   * They are never authoritative: the Pi enforces every permission itself, so
+   * a tampered session can only change what is drawn, not what is allowed.
+   */
+  role: UserRole;
+  status: AccountStatus;
 }
+
+/** A caretaker account as listed by the Owner/Admin screen. */
+export interface ManagedUser {
+  username: string;
+  displayName: string;
+  role: UserRole;
+  status: AccountStatus;
+  createdAt: string | null;
+}
+

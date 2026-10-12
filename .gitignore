@@ -80,3 +80,16 @@ memory/test_credentials.md
 
 # Mobile development
 android-sdk/
+
+# AQSMS Pi server. aqsms.db holds the bcrypt password hashes, and
+# jwt_secret.txt signs every login token. Neither may be committed.
+pi-server/*.db
+pi-server/*.db-wal
+pi-server/*.db-shm
+pi-server/jwt_secret.txt
+
+# TLS material generated on the Pi by pi-server/make-cert.sh. The private keys
+# must never leave the Pi. (*.pem is already ignored above; certs/ also holds
+# .key and .crt files.)
+pi-server/certs/
+pi-server/*.srl

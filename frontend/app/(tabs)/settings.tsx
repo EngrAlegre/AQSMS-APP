@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { CheckCircle, Lock, Plug, SignOut, WarningOctagon, WifiHigh } from "phosphor-react-native";
+import { CheckCircle, Lock, Plug, SignOut, UsersThree, WarningOctagon, WifiHigh } from "phosphor-react-native";
 import React, { useState } from "react";
 import { ActivityIndicator, Platform, Pressable, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -12,22 +12,16 @@ import { CONTRACT_STATUS } from "@/src/api/piApiContract";
 import { testPiConnection } from "@/src/api/realSource";
 import { useAuth } from "@/src/auth/AuthContext";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
-import { Segmented } from "@/src/components/Segmented";
 import { STALE_AFTER_MINUTES } from "@/src/config";
 import { useThresholds } from "@/src/hooks/usePondData";
 import { formatSafeRange, formatUnsafeRule } from "@/src/logic/status";
 import { PARAMETERS, PARAMETER_ORDER } from "@/src/models/parameters";
-import { ConnectionTestResult, DataMode } from "@/src/models/types";
+import { ROLE_DESCRIPTIONS, roleLabel } from "@/src/models/roles";
+import { ConnectionTestResult } from "@/src/models/types";
 import { usesNativeTabs } from "@/src/navigation";
 import { checkLocalNetwork } from "@/src/network/networkCheck";
 import { useSettings } from "@/src/settings/SettingsContext";
-import { DEMO_SCENARIOS, DEMO_SCENARIO_LABEL } from "@/src/settings/scenarios";
 import { fonts, makeStyles, radius, spacing, useTheme } from "@/src/theme";
-
-const MODE_OPTIONS: { value: DataMode; label: string }[] = [
-  { value: "demo", label: "Demo Mode" },
-  { value: "real", label: "Real Pi API" },
-];
 
 export default function Settings() {
   const { colors } = useTheme();
@@ -36,8 +30,8 @@ export default function Settings() {
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
   const qc = useQueryClient();
   const router = useRouter();
-  const { mode, setMode, baseUrl, setBaseUrl, demoScenario, setDemoScenario } = useSettings();
-  const { session, signOut } = useAuth();
+  const { baseUrl, setBaseUrl } = useSettings();
+  const { session, signOut, isOwner } = useAuth();
   const thresholds = useThresholds();
 
   const [draft, setDraft] = useState(baseUrl);
@@ -77,12 +71,6 @@ export default function Settings() {
     setTesting(false);
   };
 
-  const changeMode = (m: DataMode) => {
-    // Query keys include the mode, and results are stamped with their origin
-    // (see usePondData), so no cache juggling is needed here.
-    setMode(m);
-  };
-
   return (
     <View testID="settings-screen" style={styles.root}>
       <ScreenHeader eyebrow="CONFIGURATION" title="Settings" testID="settings-header" />
@@ -93,12 +81,9 @@ export default function Settings() {
       >
         {/* Data source */}
         <Text style={styles.section}>DATA SOURCE</Text>
-        <View style={styles.card}>
-          <Segmented testID="data-mode-selector" options={MODE_OPTIONS} value={mode} onChange={changeMode} />
+        <View testID="data-source-card" style={styles.card}>
           <Text style={styles.body}>
-            {mode === "demo"
-              ? "Demo Mode shows clearly marked sample readings and alerts. No network calls are made for data."
-              : "Real Pi API mode reads data from the Raspberry Pi at the address below, over the pond's local Wi-Fi only."}
+            {"All readings, alerts and thresholds come from the Raspberry Pi at the address below, over the pond's local Wi-Fi only. The app has no other data source and shows nothing until the Pi provides it."}
           </Text>
         </View>
 
@@ -173,7 +158,7 @@ export default function Settings() {
             <WifiHigh size={20} color={colors.brand} weight="bold" />
             <Text style={styles.wifiText}>
               The phone must be connected to the <Text style={styles.strong}>same local Wi-Fi network as the Raspberry Pi</Text>
-              {`. The app does not connect over mobile data or the internet. "Test connection" always calls the address above, even in Demo Mode.`}
+              {`. The app does not connect over mobile data or the internet. "Test connection" calls the address above directly.`}
             </Text>
           </View>
           {Platform.OS === "web" ? (
@@ -182,31 +167,6 @@ export default function Settings() {
             </Text>
           ) : null}
         </View>
-
-        {/* Demo scenarios */}
-        {mode === "demo" ? (
-          <>
-            <Text style={styles.section}>DEMO SCENARIO</Text>
-            <View style={[styles.card, { gap: 0, paddingVertical: spacing.xs }]}>
-              {DEMO_SCENARIOS.map((s, i) => {
-                const active = s === demoScenario;
-                return (
-                  <Pressable
-                    key={s}
-                    testID={`demo-scenario-${s}`}
-                    onPress={() => setDemoScenario(s)}
-                    style={[styles.radioRow, i > 0 && styles.radioDivider]}
-                  >
-                    <View style={[styles.radio, active && { borderColor: colors.brand }]}>
-                      {active ? <View style={styles.radioDot} /> : null}
-                    </View>
-                    <Text style={[styles.radioText, active && { color: colors.onSurface }]}>{DEMO_SCENARIO_LABEL[s]}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </>
-        ) : null}
 
         {/* Thresholds */}
         <Text style={styles.section}>THRESHOLDS · READ-ONLY</Text>
@@ -252,9 +212,32 @@ export default function Settings() {
         <Text style={styles.section}>ACCOUNT</Text>
         <View style={styles.card}>
           <Text testID="signed-in-user" style={styles.body}>
-            Signed in as <Text style={styles.strong}>{session?.displayName}</Text> ({session?.username}) ·{" "}
-            {session?.provider === "mock" ? "demo sign-in" : "Pi sign-in"}
+            Signed in as <Text style={styles.strong}>{session?.displayName}</Text> ({session?.username})
           </Text>
+          {session ? (
+            <>
+              <Text testID="signed-in-role" style={styles.roleBadge}>
+                {roleLabel(session.role)}
+              </Text>
+              <Text style={styles.help}>
+                {ROLE_DESCRIPTIONS[session.role]} The Pi checks this role on every request, not just at sign-in.
+              </Text>
+            </>
+          ) : null}
+
+          {/* Owner/Admin only. A caretaker never sees this, and the Pi refuses
+              the underlying endpoints to a caretaker token regardless. */}
+          {isOwner ? (
+            <Pressable
+              testID="manage-users-button"
+              onPress={() => router.push("/admin/users")}
+              style={({ pressed }) => [styles.btnOutline, pressed && { opacity: 0.8 }]}
+            >
+              <UsersThree size={18} color={colors.brandPrimary} weight="bold" />
+              <Text style={styles.btnOutlineText}>Manage caretaker accounts</Text>
+            </Pressable>
+          ) : null}
+
           <Pressable
             testID="sign-out-button"
             onPress={async () => {
@@ -338,19 +321,6 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.surfaceTertiary,
   },
   wifiText: { flex: 1, fontFamily: fonts.text, fontSize: 13, lineHeight: 19, color: c.onSurfaceSecondary },
-  radioRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 48 },
-  radioDivider: { borderTopWidth: 1, borderTopColor: c.divider },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: c.borderStrong,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.brand },
-  radioText: { fontFamily: fonts.textMedium, fontSize: 15, color: c.onSurfaceTertiary, flex: 1 },
   thBadgeRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -370,6 +340,29 @@ const useStyles = makeStyles((c) => ({
   thCol: { flex: 1, gap: 2 },
   thLabel: { fontFamily: fonts.textSemi, fontSize: 10, letterSpacing: 1.2, color: c.muted },
   thValue: { fontFamily: fonts.display, fontSize: 17, color: c.onSurfaceSecondary, fontVariant: ["tabular-nums"] },
+  roleBadge: {
+    alignSelf: "flex-start",
+    fontFamily: fonts.textSemi,
+    fontSize: 12,
+    letterSpacing: 1,
+    color: c.brand,
+    borderWidth: 1,
+    borderColor: c.brandPrimary,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+  },
+  btnOutline: {
+    height: 48,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: c.brandPrimary,
+    flexDirection: "row",
+    gap: spacing.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  btnOutlineText: { fontFamily: fonts.textSemi, fontSize: 15, color: c.brandPrimary },
   btnDanger: {
     height: 48,
     borderRadius: radius.md,

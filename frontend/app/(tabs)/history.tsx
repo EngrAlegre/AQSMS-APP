@@ -15,7 +15,6 @@ import { formatShort, formatValue, statusFor } from "@/src/logic/status";
 import { PARAMETERS, PARAMETER_ORDER } from "@/src/models/parameters";
 import { ParameterKey, Reading } from "@/src/models/types";
 import { usesNativeTabs } from "@/src/navigation";
-import { useSettings } from "@/src/settings/SettingsContext";
 import { fonts, makeStyles, radius, spacing, useTheme } from "@/src/theme";
 
 const OPTIONS: { value: ParameterKey; label: string }[] = PARAMETER_ORDER.map((k) => ({
@@ -28,12 +27,13 @@ export default function History() {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
-  const { mode } = useSettings();
   const [param, setParam] = useState<ParameterKey>("ph");
   const history = useReadingHistory();
   const thresholds = useThresholds();
   const readings = useMemo(() => history.data ?? [], [history.data]);
   const meta = PARAMETERS[param];
+  // A safe band is drawn only from limits the operator has approved.
+  const bandShown = thresholds.data?.approved === true;
 
   const stats = useMemo(() => {
     const vals = readings.map((r) => r.values[param]).filter((v): v is number => v !== null);
@@ -55,9 +55,6 @@ export default function History() {
 
   const header = (
     <View style={styles.headerBlock}>
-      {mode === "demo" ? (
-        <Banner testID="history-demo-banner" tone="demo" title="DEMO MODE · sample history" message="Simulated records for UI review, not sensor data." />
-      ) : null}
       {err ? (
         <Banner
           testID="history-error-banner"
@@ -76,11 +73,18 @@ export default function History() {
             </Text>
             <Text style={styles.unit}>{meta.unit}</Text>
           </View>
-          <TrendChart points={points} threshold={thresholds.data?.values[param] ?? null} decimals={meta.decimals} />
+          <TrendChart
+            points={points}
+            threshold={thresholds.data?.values[param] ?? null}
+            approved={bandShown}
+            decimals={meta.decimals}
+          />
           <View style={styles.legend}>
-            <View style={styles.legendSwatch} />
+            {bandShown ? <View style={styles.legendSwatch} /> : null}
             <Text style={styles.legendText}>
-              Shaded band = safe range ({thresholds.data?.sourceLabel ?? "thresholds unavailable"})
+              {bandShown
+                ? `Shaded band = safe range (${thresholds.data?.sourceLabel ?? "thresholds unavailable"})`
+                : `No safe band shown — ${thresholds.data?.sourceLabel ?? "thresholds unavailable"}. Readings are plotted without a Safe judgement.`}
             </Text>
           </View>
           {stats ? (

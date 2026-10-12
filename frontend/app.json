@@ -17,7 +17,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#050B14"
       },
-      "package": "com.emergent.aquasmartmobile.zi51we",
+      "package": "com.aquasmart.khai",
+      "versionCode": 3,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -49,10 +50,12 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": true,
+            "buildArchs": ["arm64-v8a"]
           }
         }
-      ]
+      ],
+      "./plugins/with-pi-certificate"
     ],
     "experiments": {
       "typedRoutes": true

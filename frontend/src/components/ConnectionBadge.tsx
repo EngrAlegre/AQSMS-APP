@@ -7,8 +7,6 @@ function tone(colors: ThemeColors, s: ConnectionState) {
   switch (s) {
     case "live":
       return { fg: colors.success, bg: colors.successSoft };
-    case "simulated":
-      return { fg: colors.info, bg: colors.infoSoft };
     case "stale":
     case "cached":
       return { fg: colors.warning, bg: colors.warningSoft };

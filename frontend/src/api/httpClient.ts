@@ -1,3 +1,4 @@
+import { notifyUnauthorized, setSessionNotice } from "@/src/auth/session-events";
 import { REQUEST_TIMEOUT_MS } from "@/src/config";
 
 import { ApiError } from "./errors";
@@ -110,15 +111,58 @@ export async function requestJson(
   const latencyMs = Date.now() - started;
   const text = await res.text();
   if (!res.ok) {
+    // The Pi explains refusals in {"error": "..."}, sometimes with a
+    // machine-readable {"code": "..."}. Surfacing that is the difference
+    // between "validation failed" and "the passwords do not match".
+    let serverMessage: string | null = null;
+    let code: string | null = null;
+    if (text.trim()) {
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed === "object") {
+          if (typeof parsed.error === "string") serverMessage = parsed.error;
+          if (typeof parsed.code === "string") code = parsed.code;
+        }
+      } catch {
+        // Not JSON; the generic messages below still apply.
+      }
+    }
+
+    // A 401 on a request that carried a token means the session is no longer
+    // usable -- expired, or the Pi's signing key changed. Tell the auth
+    // provider so the farmer returns to sign-in instead of watching a
+    // dashboard that can never refresh.
+    //
+    // A 403 carrying code "account_disabled" is the same situation from the
+    // user's point of view: the token is genuine but this account may no longer
+    // act, so every future request would fail identically. Sign out for that
+    // too. Any other 403 (a caretaker touching an owner-only route) is NOT a
+    // reason to sign out -- the identity is fine, the action is not.
+    if (options.headers?.Authorization) {
+      if (res.status === 401) {
+        setSessionNotice("Your sign-in is no longer valid. Please sign in again.");
+        notifyUnauthorized();
+      } else if (res.status === 403 && code === "account_disabled") {
+        setSessionNotice("This account has been disabled by the Owner/Admin.");
+        notifyUnauthorized();
+      }
+    }
+
+    const message =
+      res.status === 404
+        ? `Path "${path}" was not found. The endpoint paths in src/api/piApiContract.ts may not match the Pi API yet.`
+        : serverMessage ??
+          (res.status === 401 || res.status === 403
+            ? "The Pi refused the request (not authorised)."
+            : `The Pi API returned an error (HTTP ${res.status}).`);
+
     throw new ApiError(
       "http",
       `Pi responded with HTTP ${res.status}`,
-      res.status === 404
-        ? `Path "${path}" was not found. The endpoint paths in src/api/piApiContract.ts may not match the Pi API yet.`
-        : res.status === 401 || res.status === 403
-          ? "The Pi refused the request (not authorised)."
-          : `The Pi API returned an error (HTTP ${res.status}).`,
+      message,
       res.status,
+      serverMessage ?? undefined,
+      code ?? undefined,
     );
   }
   if (!text.trim()) return { status: res.status, json: null, latencyMs };

@@ -1,0 +1,47 @@
+# AQSMS Pi API — systemd unit.
+#
+# Install on the Pi:
+#   sudo cp aqsms.service /etc/systemd/system/
+#   sudo nano /etc/systemd/system/aqsms.service    # replace <pi-user> and paths
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now aqsms
+#   sudo systemctl status aqsms
+#
+# The paths below assume the layout used in PHONE_TO_PI_SETUP.md:
+#   /home/<pi-user>/aqsms/pi-server/
+
+[Unit]
+Description=AQSMS Pi API (Flask + SQLite, farm LAN only)
+Documentation=file:/home/<pi-user>/aqsms/PHONE_TO_PI_SETUP.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=<pi-user>
+Group=<pi-user>
+WorkingDirectory=/home/<pi-user>/aqsms/pi-server
+ExecStart=/home/<pi-user>/aqsms/pi-server/serve.sh
+
+# A crash restarts rather than leaving the pond unmonitored.
+Restart=on-failure
+RestartSec=5
+
+# Keep the access log out of the journal's way but still discoverable.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=aqsms
+
+# serve.sh needs only its own directory: aqsms.db, jwt_secret.txt and certs/
+# live there. Hardening below keeps everything else read-only to this service.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/<pi-user>/aqsms/pi-server
+
+# SQLite in WAL mode needs to create -wal and -shm files beside the database,
+# which ReadWritePaths above already permits.
+
+[Install]
+WantedBy=multi-user.target

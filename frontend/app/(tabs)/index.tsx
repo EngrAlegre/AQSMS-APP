@@ -20,7 +20,6 @@ import { PARAMETER_ORDER } from "@/src/models/parameters";
 import { usesNativeTabs } from "@/src/navigation";
 import { checkLocalNetwork } from "@/src/network/networkCheck";
 import { useSettings } from "@/src/settings/SettingsContext";
-import { DEMO_SCENARIO_LABEL } from "@/src/settings/scenarios";
 import { fonts, makeStyles, radius, spacing, useTheme } from "@/src/theme";
 
 export default function Dashboard() {
@@ -29,7 +28,7 @@ export default function Dashboard() {
   const insets = useSafeAreaInsets();
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
   const router = useRouter();
-  const { mode, baseUrl, demoScenario } = useSettings();
+  const { baseUrl } = useSettings();
   const latest = useLatestReading();
   const thresholds = useThresholds();
   const now = useNow();
@@ -38,12 +37,12 @@ export default function Dashboard() {
   const reading = latest.data?.reading ?? null;
   const stale = reading ? isStale(reading.timestamp, now) : false;
   const err = latest.error ? toApiError(latest.error) : null;
-  const conn = deriveConnection({ mode, hasData: !!latest.data, isLoading: latest.isLoading, error: latest.error, stale });
+  const conn = deriveConnection({ hasData: !!reading, isLoading: latest.isLoading, error: latest.error, stale });
   const pondName = latest.data?.pondName ?? POND_NAME;
 
   useEffect(() => {
     let alive = true;
-    if (mode === "real" && err && (err.kind === "unreachable" || err.kind === "timeout")) {
+    if (err && (err.kind === "unreachable" || err.kind === "timeout")) {
       let host: string | null = null;
       try {
         host = normalizeBaseUrl(baseUrl).host;
@@ -53,7 +52,7 @@ export default function Dashboard() {
     return () => {
       alive = false;
     };
-  }, [mode, baseUrl, err?.kind]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [baseUrl, err?.kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = () => {
     latest.refetch();
@@ -67,7 +66,7 @@ export default function Dashboard() {
   return (
     <View testID="dashboard-screen" style={styles.root}>
       <ScreenHeader
-        eyebrow={mode === "demo" ? "DEMO MODE · POND MONITOR" : "REAL PI API · POND MONITOR"}
+        eyebrow="RASPBERRY PI · POND MONITOR"
         title={pondName}
         right={<ConnectionBadge state={conn} />}
         testID="dashboard-header"
@@ -85,15 +84,6 @@ export default function Dashboard() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.brand} colors={[colors.brandPrimary]} />}
       >
-        {mode === "demo" ? (
-          <Banner
-            testID="demo-mode-banner"
-            tone="demo"
-            title="DEMO MODE · sample data, not sensor readings"
-            message={`Values are simulated for UI review. Scenario: ${DEMO_SCENARIO_LABEL[demoScenario]}.`}
-          />
-        ) : null}
-
         {err && !latest.data ? (
           <Banner
             testID="dashboard-error-banner"
@@ -114,7 +104,7 @@ export default function Dashboard() {
           />
         ) : null}
 
-        {wifiHint && mode === "real" && err ? <Banner testID="wifi-hint-banner" tone="warning" title="Possible wrong Wi-Fi" message={wifiHint} /> : null}
+        {wifiHint && err ? <Banner testID="wifi-hint-banner" tone="warning" title="Possible wrong Wi-Fi" message={wifiHint} /> : null}
 
         {!err && stale && reading ? (
           <Banner

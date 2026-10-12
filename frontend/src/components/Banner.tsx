@@ -1,10 +1,10 @@
-import { Info, WarningOctagon, Warning, Flask } from "phosphor-react-native";
+import { Info, Warning, WarningOctagon } from "phosphor-react-native";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { fonts, makeStyles, radius, spacing, useTheme } from "@/src/theme";
 
-type Tone = "demo" | "info" | "warning" | "error";
+type Tone = "info" | "warning" | "error";
 
 interface Props {
   tone: Tone;
@@ -15,12 +15,11 @@ interface Props {
   testID?: string;
 }
 
-/** Inline banner for demo labelling, stale/cached notices and errors. */
+/** Inline banner for stale/cached notices, connection problems and errors. */
 export function Banner({ tone, title, message, actionLabel, onAction, testID }: Props) {
   const { colors } = useTheme();
   const styles = useStyles();
   const t = {
-    demo: { fg: colors.info, bg: colors.infoSoft, Icon: Flask },
     info: { fg: colors.brandPrimary, bg: colors.surfaceTertiary, Icon: Info },
     warning: { fg: colors.warning, bg: colors.warningSoft, Icon: Warning },
     error: { fg: colors.error, bg: colors.errorSoft, Icon: WarningOctagon },

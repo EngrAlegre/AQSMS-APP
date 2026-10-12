@@ -8,6 +8,7 @@ import {
   buildAuthHeaders,
   ENDPOINTS,
   mapAlerts,
+  mapHealthRegistrationOpen,
   mapLatestReading,
   mapReadingHistory,
   mapThresholds,
@@ -25,7 +26,7 @@ export function createRealSource(baseUrl: string, token: string | null): PondDat
   };
 }
 
-/** Tests the address typed in Settings (always a real network call, even in Demo Mode). */
+/** Tests the address typed in Settings or on the sign-in screen. */
 export async function testPiConnection(baseUrl: string): Promise<ConnectionTestResult> {
   try {
     const res = await requestJson(baseUrl, ENDPOINTS.health);
@@ -39,6 +40,29 @@ export async function testPiConnection(baseUrl: string): Promise<ConnectionTestR
   } catch (e) {
     const err = toApiError(e);
     const reachable = err.kind === "http" || err.kind === "malformed";
-    return { reachable, ok: false, latencyMs: null, title: err.title, detail: err.message };
+    // React Native reports a certificate the phone does not trust in exactly the
+    // same way as an unreachable host, so on an https:// address say so instead
+    // of sending the farmer to check the Wi-Fi and the power.
+    const tlsHint =
+      err.kind === "unreachable" && baseUrl.trim().toLowerCase().startsWith("https://")
+        ? " If the Pi is powered on and reachable, the phone may not trust its certificate. Install an APK built with the Pi's CA certificate, or use the http:// address until you have."
+        : "";
+    return { reachable, ok: false, latencyMs: null, title: err.title, detail: err.message + tlsHint };
+  }
+}
+
+/**
+ * Whether the Pi is currently accepting public caretaker registration.
+ *
+ * Returns null when the Pi could not be asked. null is deliberately distinct
+ * from false: an unreachable Pi is not evidence that registration was closed,
+ * and treating it as closed would hide a working "Register as Caretaker".
+ */
+export async function fetchRegistrationOpen(baseUrl: string): Promise<boolean | null> {
+  try {
+    const res = await requestJson(baseUrl, ENDPOINTS.health);
+    return mapHealthRegistrationOpen(res.json);
+  } catch {
+    return null;
   }
 }

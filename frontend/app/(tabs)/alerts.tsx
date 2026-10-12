@@ -14,7 +14,6 @@ import { formatDateTime, formatValue } from "@/src/logic/status";
 import { PARAMETERS } from "@/src/models/parameters";
 import { AlertRecord } from "@/src/models/types";
 import { usesNativeTabs } from "@/src/navigation";
-import { useSettings } from "@/src/settings/SettingsContext";
 import { fonts, makeStyles, radius, spacing, useTheme } from "@/src/theme";
 
 export default function Alerts() {
@@ -22,16 +21,12 @@ export default function Alerts() {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
-  const { mode } = useSettings();
   const alerts = useAlertHistory();
   const err = alerts.error ? toApiError(alerts.error) : null;
   const data = alerts.data ?? [];
 
   const header = (
     <View style={styles.headerBlock}>
-      {mode === "demo" ? (
-        <Banner testID="alerts-demo-banner" tone="demo" title="DEMO MODE · sample alerts" message="Alert records below are part of the demo data set." />
-      ) : null}
       <View testID="sms-note" style={styles.note}>
         <ChatText size={18} color={colors.onSurfaceTertiary} />
         <Text style={styles.noteText}>

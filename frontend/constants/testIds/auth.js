@@ -16,21 +16,29 @@
 // Why kebab-case values: required by qabot's CSS-attribute-style selector
 // matcher and the lint rule `emergent(kebab-case-testid-prop)`.
 
+// AQSMS accounts have no email address: the Pi stores a username, a bcrypt
+// password hash and a display name, nothing else. Registration creates the one
+// farmer account and is closed afterwards.
+//
+// The sign-in screen currently sets its testIDs inline, so this file is
+// documentation of the agreed names rather than a live import. The ids below
+// match what app/sign-in.tsx actually renders.
 export const LOGIN = {
-	emailInput: 'login-email-input',
-	passwordInput: 'login-password-input',
-	submitButton: 'login-submit-button',
-	forgotPasswordLink: 'login-forgot-password-link',
-	registerLink: 'login-register-link',
+	usernameInput: 'sign-in-username-input',
+	passwordInput: 'sign-in-password-input',
+	submitButton: 'sign-in-submit-button',
+	togglePassword: 'sign-in-toggle-password',
+	createAccountLink: 'login-create-account-link',
 };
 
-export const REGISTER = {
-	nameInput: 'register-name-input',
-	emailInput: 'register-email-input',
-	passwordInput: 'register-password-input',
-	passwordConfirmInput: 'register-password-confirm-input',
-	submitButton: 'register-submit-button',
-	loginLink: 'register-login-link',
+export const CREATE_ACCOUNT = {
+	link: 'login-create-account-link',
+	usernameInput: 'create-account-username-input',
+	passwordInput: 'create-account-password-input',
+	passwordConfirmInput: 'create-account-password-confirm-input',
+	submitButton: 'create-account-submit-button',
+	cancelLink: 'create-account-cancel-link',
+	error: 'create-account-error',
 };
 
 export const LOGOUT = {

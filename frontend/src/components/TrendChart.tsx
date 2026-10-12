@@ -14,6 +14,13 @@ interface Point {
 interface Props {
   points: Point[]; // chronological
   threshold: ParameterThreshold | null;
+  /**
+   * True only when the Pi reports every threshold row approved. Unapproved
+   * limits are never drawn: shading a green "safe range" from numbers nobody
+   * has signed off would assert a judgement the system is not entitled to
+   * make. Without approval the chart still plots the readings, unbanded.
+   */
+  approved: boolean;
   decimals: number;
   height?: number;
 }
@@ -24,7 +31,7 @@ const PAD_T = 10;
 const PAD_B = 22;
 
 /** Simple static line chart: safe band shaded, gaps where values are missing. */
-export function TrendChart({ points, threshold, decimals, height = 190 }: Props) {
+export function TrendChart({ points, threshold, approved, decimals, height = 190 }: Props) {
   const { colors } = useTheme();
   const styles = useStyles();
   const [width, setWidth] = useState(0);
@@ -34,8 +41,9 @@ export function TrendChart({ points, threshold, decimals, height = 190 }: Props)
     if (!vals.length || width === 0 || points.length < 2) return null;
     let lo = Math.min(...vals);
     let hi = Math.max(...vals);
-    if (threshold?.safeMin != null) lo = Math.min(lo, threshold.safeMin);
-    if (threshold?.safeMax != null) hi = Math.max(hi, threshold.safeMax);
+    // Only stretch the axis to cover limits the operator has actually approved.
+    if (approved && threshold?.safeMin != null) lo = Math.min(lo, threshold.safeMin);
+    if (approved && threshold?.safeMax != null) hi = Math.max(hi, threshold.safeMax);
     const pad = (hi - lo || 1) * 0.12;
     lo -= pad;
     hi += pad;
@@ -55,11 +63,15 @@ export function TrendChart({ points, threshold, decimals, height = 190 }: Props)
       d += `${pen ? "L" : "M"}${x(p.t).toFixed(1)} ${y(p.v).toFixed(1)} `;
       pen = true;
     }
-    const bandTop = threshold?.safeMax != null ? y(threshold.safeMax) : PAD_T;
-    const bandBottom = threshold?.safeMin != null ? y(threshold.safeMin) : PAD_T + h;
+    const band = approved && threshold
+      ? {
+          top: threshold.safeMax != null ? y(threshold.safeMax) : PAD_T,
+          bottom: threshold.safeMin != null ? y(threshold.safeMin) : PAD_T + h,
+        }
+      : null;
     const last = [...points].reverse().find((p) => p.v !== null)!;
-    return { d, lo, hi, w, h, x, y, bandTop, bandBottom, t0, t1, last };
-  }, [points, threshold, width, height]);
+    return { d, lo, hi, w, h, x, y, band, t0, t1, last };
+  }, [points, threshold, approved, width, height]);
 
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
 
@@ -68,12 +80,12 @@ export function TrendChart({ points, threshold, decimals, height = 190 }: Props)
       {model ? (
         <>
           <Svg width={width} height={height}>
-            {threshold ? (
+            {model.band ? (
               <Rect
                 x={PAD_L}
-                y={model.bandTop}
+                y={model.band.top}
                 width={model.w}
-                height={Math.max(0, model.bandBottom - model.bandTop)}
+                height={Math.max(0, model.band.bottom - model.band.top)}
                 fill={colors.successSoft}
               />
             ) : null}
