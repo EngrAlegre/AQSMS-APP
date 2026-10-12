@@ -49,17 +49,20 @@ Monitored parameters: **pH**, **water temperature (°C)**, **dissolved oxygen
 | | |
 |---|---|
 | Repository | https://github.com/EngrAlegre/AQSMS-APP (public) |
-| Branch with the current app | **`current-app`** = `1a9756f` |
-| `main` | `5d403e4` — an older, unrelated history (4 commits). Not yet updated. |
+| Branch with the current app | **`main`** = `1d011d0` |
+| `current-app` | `647d02f` — the same tree as `main`, redundant, safe to delete |
+| Older history | `5d403e4` — the previous 4-commit history, kept as an ancestor of `main` |
 | Tracked files | 141 |
 | Automated checks | **113 passing** (4 suites), `tsc` and `expo lint` clean |
 | Release APK | **not built since the icon change** — see §8 |
 | Verified on real hardware | **no** — see §11 |
 
 The current work (Owner/Admin and Caretaker accounts, the role API, the new
-launcher icon) lives on `current-app`. It is pushed but **not merged into
-`main`**, and `current-app` and `main` share no common ancestor, so a merge
-brings `main` forward as a single joined history.
+launcher icon) is on `main`. The two previously-unrelated histories were joined
+with `git merge -s ours --allow-unrelated-histories`, so `main`'s tree is
+exactly the current app while the old four commits remain as a second parent.
+`main` advanced by fast-forward — nothing was force-pushed, and no superseded
+file was resurrected by the merge.
 
 ---
 
@@ -113,10 +116,9 @@ complete list of what a fresh clone will *not* have:
 ### Step by step
 
 ```powershell
-# 1. Get the code (the current app is on current-app, not main)
+# 1. Get the code (main is the current app, and is the default branch)
 git clone https://github.com/EngrAlegre/AQSMS-APP.git
 cd AQSMS-APP
-git checkout current-app
 
 # 2. App dependencies                       (node 24, yarn 1.22)
 cd frontend
@@ -350,9 +352,11 @@ Authentication happens only against the Pi.
   `C:\Users\Jahna\AppData\Local\Programs\Git\cmd\git.exe`.
 - **PowerShell 5.1**: no `&&`, no ternary, no `??`. `robocopy` exit codes 0–7
   mean success and anything ≥ 8 is a failure — do not treat exit 1 as an error.
-- **`git push` from `main` fails** by design: local `main` and `origin/main` are
-  unrelated histories. Push with an explicit refspec:
-  `git push origin main:current-app`.
+- **`main` used to be unpushable** because local `main` and `origin/main` were
+  unrelated histories. That is fixed: they were joined with `git merge -s ours
+  --allow-unrelated-histories`, and `main` now tracks `origin/main` and pushes
+  normally. If you ever meet the same error on another clone, that merge is the
+  answer — not `--force`.
 - **Firmware is one file** (`aqsms_esp32.ino`, ~110 KB) and structs must be
   declared before the first function that uses them. Built against
   `esp32:esp32` **2.0.17** — pin that version; the 3.x core install fails on a
@@ -383,7 +387,8 @@ Android resources.
 
 ## 12. Next actions
 
-1. Review and merge `current-app` into `main` on GitHub.
+1. Delete the now-redundant `current-app` branch on GitHub — `main` already
+   holds the same tree.
 2. Build the release APK (§8) and confirm the signer is not the debug key.
 3. Back up the Pi's `aqsms.db`, rehearse the migration on a copy, then apply it
    and provision the Owner/Admin (§6).

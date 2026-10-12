@@ -30,4 +30,5 @@ Two things that are easy to get wrong:
   than a green **Safe**. That is deliberate — do not seed demo readings, alerts,
   or threshold values.
 
-The current app is on branch **`current-app`**, not `main`.
+`main` is the current app. (The branch `current-app` points at the same tree and
+is now redundant — safe to delete on GitHub.)
