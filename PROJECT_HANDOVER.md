@@ -7,7 +7,7 @@ ESP32 with sensors watches the water, a Raspberry Pi on the farm LAN stores and
 serves the data, and an Android app shows it to the farmer. There is no cloud
 component — the Pi, the phone and the board are the whole system.
 
-Last updated **13 October 2026**.
+Last updated **16 October 2026**.
 
 ---
 
@@ -56,6 +56,7 @@ Monitored parameters: **pH**, **water temperature (°C)**, **dissolved oxygen
 | Automated checks | **113 passing** (4 suites), `tsc` and `expo lint` clean |
 | Release APK | **not built since the icon change** — see §8 |
 | Verified on real hardware | **no** — see §11 |
+| Pi on the farm LAN | `10.69.89.216`, MAC `88-A2-9E-AE-8C-D6` — **needs a DHCP reservation** — see §6 |
 
 The current work (Owner/Admin and Caretaker accounts, the role API, the new
 launcher icon) is on `main`. The two previously-unrelated histories were joined
@@ -260,6 +261,51 @@ exists) and falls back to plain HTTP on 8443 with a loud warning. `python
 server.py` uses **8000** — the plain-HTTP developer server. Full walkthrough:
 `PHONE_TO_PI_SETUP.md`.
 
+### Pin the Pi's address on the router — do this before going live
+
+`make-cert.sh` writes the Pi's **current LAN address** into the server
+certificate. Both the app and the board check that address when they connect,
+and the certificate has no way to say *the address moved*. So when the router
+hands the Pi a different address, TLS stops working in both places at once, with
+no error that mentions the address:
+
+- the phone shows an unexplained connection failure;
+- the ESP32 logs a TLS error;
+- `openssl s_client` reports **code 64 (IP address mismatch)** — anonymous.
+
+Do not confuse that with **code 9 ("not yet valid")**, which is almost always
+clock skew between the Pi and the machine checking it, not a bad certificate.
+
+The fix for a genuine move is `./make-cert.sh <new-address>` **on the Pi**, then
+copy the CA to `frontend/certs/`, rebuild the APK, re-enter the address in the
+app, and reflash the board. It must print *Reusing the existing certificate
+authority* — a new CA invalidates the copy inside the APK and the block pasted
+into the sketch.
+
+**The way to never do that again is a DHCP reservation on the router**, which
+binds the Pi's hardware ID to one address across reboots and power cuts:
+
+| | |
+|---|---|
+| Router admin page | `http://10.69.89.85` |
+| Address to reserve | `10.69.89.216` — the one it already has |
+| Pi's hardware ID (MAC) | `88-A2-9E-AE-8C-D6` |
+
+Look for **DHCP Reservation**, **Static Lease**, **Address Reservation** or
+**Bind IP to MAC**, usually under LAN, Network or Advanced. Reserve the address
+the Pi **already has**: the certificate and the flashed board are already set up
+for it, so nothing else needs redoing. Reserving a *different* address defeats
+the point and costs you both steps again. The MAC belongs to the interface the
+Pi is using now — moving it between Ethernet and Wi-Fi is a different MAC and
+needs its own reservation.
+
+The firmware also carries an **optional name-based path** (`AQSMS_PI_BY_NAME` in
+`aqsms_esp32.ino`, **off by default**) that reaches the Pi as `aquasmart.local`
+instead of by address, which would survive a move. It is left off because it is
+untested on hardware and because the phone cannot use it — Android does not
+resolve `.local` names, so the app would still break and the certificate would
+still need re-issuing. The DHCP reservation is what fixes it for both.
+
 ---
 
 ## 7. Tests
@@ -363,6 +409,10 @@ Authentication happens only against the Pi.
   673 MB download on this machine.
 - **The ESP32's `X-API-Key` and people's JWTs are separate.** Passing a Bearer
   token to `/esp32/*` must fail, and it does.
+- **The Pi's TLS certificate names its LAN address**, so a DHCP lease change
+  breaks the app *and* the board at the same moment with no error naming the
+  address — `openssl` says only code 64. Reserve the address on the router (§6);
+  do not "fix" it by disabling certificate checking, and never regenerate the CA.
 
 ---
 
@@ -389,12 +439,14 @@ Android resources.
 
 1. Delete the now-redundant `current-app` branch on GitHub — `main` already
    holds the same tree.
-2. Build the release APK (§8) and confirm the signer is not the debug key.
-3. Back up the Pi's `aqsms.db`, rehearse the migration on a copy, then apply it
+2. Reserve the Pi's address on the router (§6) — one router setting that
+   removes every future `make-cert.sh` re-run, APK rebuild and board reflash.
+3. Build the release APK (§8) and confirm the signer is not the debug key.
+4. Back up the Pi's `aqsms.db`, rehearse the migration on a copy, then apply it
    and provision the Owner/Admin (§6).
-4. Install the APK and walk both roles with the phone checklist in
+5. Install the APK and walk both roles with the phone checklist in
    `PHONE_TO_PI_SETUP.md`.
-5. Change `aqua123` with `reset_password.py` before anyone else uses it.
+6. Change `aqua123` with `reset_password.py` before anyone else uses it.
 
 ### Explicitly out of scope for this release (decided, not unresolved)
 
