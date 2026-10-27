@@ -53,10 +53,10 @@ Monitored parameters: **pH**, **water temperature (°C)**, **dissolved oxygen
 | `current-app` | `647d02f` — the same tree as `main`, redundant, safe to delete |
 | Older history | `5d403e4` — the previous 4-commit history, kept as an ancestor of `main` |
 | Tracked files | 141 |
-| Automated checks | **113 passing** (4 suites), `tsc` and `expo lint` clean |
+| Automated checks | **125 passing** (4 suites), `tsc` and `expo lint` clean |
 | Release APK | **not built since the icon change** — see §8 |
 | Verified on real hardware | **no** — see §11 |
-| Pi on the farm LAN | `10.69.89.216`, MAC `88-A2-9E-AE-8C-D6` — **needs a DHCP reservation** — see §6 |
+| Pi on the farm LAN | moving target on a phone hotspot — **Pi will host its own Wi-Fi at `10.42.0.1`** — see §6 |
 
 The current work (Owner/Admin and Caretaker accounts, the role API, the new
 launcher icon) is on `main`. The two previously-unrelated histories were joined
@@ -261,11 +261,11 @@ exists) and falls back to plain HTTP on 8443 with a loud warning. `python
 server.py` uses **8000** — the plain-HTTP developer server. Full walkthrough:
 `PHONE_TO_PI_SETUP.md`.
 
-### Pin the Pi's address on the router — do this before going live
+### Give the Pi a permanent address — it hosts its own Wi-Fi
 
 `make-cert.sh` writes the Pi's **current LAN address** into the server
 certificate. Both the app and the board check that address when they connect,
-and the certificate has no way to say *the address moved*. So when the router
+and the certificate has no way to say *the address moved*. So when the network
 hands the Pi a different address, TLS stops working in both places at once, with
 no error that mentions the address:
 
@@ -276,35 +276,81 @@ no error that mentions the address:
 Do not confuse that with **code 9 ("not yet valid")**, which is almost always
 clock skew between the Pi and the machine checking it, not a bad certificate.
 
-The fix for a genuine move is `./make-cert.sh <new-address>` **on the Pi**, then
-copy the CA to `frontend/certs/`, rebuild the APK, re-enter the address in the
-app, and reflash the board. It must print *Reusing the existing certificate
-authority* — a new CA invalidates the copy inside the APK and the block pasted
-into the sketch.
+**Why there is no DHCP reservation here.** The Pi's first deployment sat on an
+Android phone's hotspot (`Infinix GT 30 Pro`). Android has no admin page and no
+reservation feature — the "router" is someone's phone — and it invents a fresh
+`10.x` subnet every time the hotspot restarts. The address cannot be pinned that
+way, so the Pi must **stop being a client** and host the network itself.
 
-**The way to never do that again is a DHCP reservation on the router**, which
-binds the Pi's hardware ID to one address across reboots and power cuts:
+**The fix: the Pi hosts its own Wi-Fi.** It then *is* the network, so its address
+is one we choose and write down, and it never moves again.
 
 | | |
 |---|---|
-| Router admin page | `http://10.69.89.85` |
-| Address to reserve | `10.69.89.216` — the one it already has |
-| Pi's hardware ID (MAC) | `88-A2-9E-AE-8C-D6` |
+| Pi's address on its own network | `10.42.0.1` |
+| Band | **2.4 GHz only** — the ESP32 cannot see a 5 GHz AP |
+| TLS | stays on (`AQSMS_USE_TLS 1`) |
+| CA | must **not** change |
 
-Look for **DHCP Reservation**, **Static Lease**, **Address Reservation** or
-**Bind IP to MAC**, usually under LAN, Network or Advanced. Reserve the address
-the Pi **already has**: the certificate and the flashed board are already set up
-for it, so nothing else needs redoing. Reserving a *different* address defeats
-the point and costs you both steps again. The MAC belongs to the interface the
-Pi is using now — moving it between Ethernet and Wi-Fi is a different MAC and
-needs its own reservation.
+Cut over with NetworkManager (the default on Raspberry Pi OS Bookworm):
 
-The firmware also carries an **optional name-based path** (`AQSMS_PI_BY_NAME` in
-`aqsms_esp32.ino`, **off by default**) that reaches the Pi as `aquasmart.local`
-instead of by address, which would survive a move. It is left off because it is
-untested on hardware and because the phone cannot use it — Android does not
-resolve `.local` names, so the app would still break and the certificate would
-still need re-issuing. The DHCP reservation is what fixes it for both.
+```bash
+sudo nmcli device wifi hotspot ifname wlan0 ssid <SSID> password '<password>'
+sudo nmcli con mod Hotspot connection.autoconnect yes
+sudo nmcli con mod Hotspot 802-11-wireless.band bg   # 2.4 GHz, for the ESP32
+```
+
+A Pi without NetworkManager needs `hostapd` + `dnsmasq` by hand instead. Either
+way the way back in is a keyboard and monitor on the Pi, so confirm that exists
+**before** the cutover, and back up the current profiles first
+(`sudo cp -r /etc/NetworkManager/system-connections ~/netbak`) so the old state
+can be restored with `nmcli con up <old-profile>`.
+
+Then re-issue the certificate, **passing the address explicitly** — do not let it
+auto-detect, because `hostname -I | awk '{print $1}'` can pick the wrong
+interface once the Pi has both an AP and a client interface:
+
+```bash
+cd ~/aqsms/pi-server
+./make-cert.sh 10.42.0.1
+sudo systemctl restart aqsms
+```
+
+It must print *Reusing the existing certificate authority*. A new CA invalidates
+the copy inside the APK **and** the block pasted into the sketch.
+
+Two consequences worth writing down, because neither is obvious:
+
+- **The Pi has no internet afterwards.** That is the point — nothing at runtime
+  needs it — but there is no `apt`, no `git pull`, and no remote help. Do
+  software updates while it is still a client of some other network.
+- **The Pi's clock now drifts**, because it can no longer reach a time server.
+  This is why the app never subtracts the phone's clock from the Pi's stored
+  timestamps: staleness is decided from `age_seconds`, which the Pi measures
+  entirely on its own clock. See `frontend/src/logic/status.ts`.
+
+**The address change alone needs no APK rebuild** — the APK carries the CA, which
+does not change; the address is typed into the app by the user.
+
+There is no name-based fallback **in the firmware**: the board connects by address
+(`AQSMS_PI_HOST` in `aqsms_esp32.ino`) and always has. An earlier note here
+described an `AQSMS_PI_BY_NAME` option said to reach the Pi as `aquasmart.local`;
+**no such code exists** — the symbol appears nowhere in the sketch.
+
+The *name* itself, though, is real. `make-cert.sh` emits
+`DNS:${SHORT},DNS:${SHORT}.local` where `SHORT` is `hostname -s`, and this Pi's
+hostname is `aquasmart`, so the live certificate reads:
+
+```
+subject=CN=10.42.0.1, O=AQSMS
+SAN: IP:10.42.0.1, IP:127.0.0.1, DNS:localhost, DNS:aquasmart, DNS:aquasmart.local
+```
+
+So an earlier correction here that claimed the SAN "actually says
+`raspberrypi.local`" was itself wrong — that is only the default hostname, not
+this Pi's. The name is on the certificate; what is missing is firmware that would
+use it. Android does not resolve `.local` either, so a fixed address remains the
+mechanism for both clients.
 
 ---
 
@@ -312,12 +358,12 @@ still need re-issuing. The DHCP reservation is what fixes it for both.
 
 | Suite | Covers | Checks |
 |---|---|---|
-| `tests/logic.test.ts` | Mappers, status logic, client vs a mock Pi | 27 |
-| `tests/pi_server.test.ts` | Real Flask server and SQLite: ingest, readings, alerts | 22 |
+| `tests/logic.test.ts` | Mappers, status logic, reading age, client vs a mock Pi | 37 |
+| `tests/pi_server.test.ts` | Real Flask server and SQLite: ingest, readings, alerts, `age_seconds` | 24 |
 | `tests/registration.test.ts` | Public caretaker registration, duplicate race, reserved identifier | 28 |
 | `tests/roles.test.ts` | The permission matrix, disable/re-enable, token invalidation | 36 |
 
-**113 total, all passing**, plus `tsc --noEmit` and `expo lint` clean.
+**125 total, all passing**, plus `tsc --noEmit` and `expo lint` clean.
 
 `roles.test.ts` is the one that matters for security claims: it drives the
 permission matrix over raw HTTP rather than through the UI, so a hidden button
@@ -411,14 +457,15 @@ Authentication happens only against the Pi.
   token to `/esp32/*` must fail, and it does.
 - **The Pi's TLS certificate names its LAN address**, so a DHCP lease change
   breaks the app *and* the board at the same moment with no error naming the
-  address — `openssl` says only code 64. Reserve the address on the router (§6);
-  do not "fix" it by disabling certificate checking, and never regenerate the CA.
+  address — `openssl` says only code 64. The Pi therefore hosts its own Wi-Fi and
+  keeps a fixed `10.42.0.1` (§6); do not "fix" an address problem by disabling
+  certificate checking, and never regenerate the CA.
 
 ---
 
 ## 11. Honest status
 
-**Verified:** 113 automated checks against a real Flask server and SQLite;
+**Verified:** 125 automated checks against a real Flask server and SQLite;
 migration rehearsed on temporary databases with hashes compared byte-for-byte;
 `tsc` and `expo lint` clean; the icon pipeline diffed against the regenerated
 Android resources.
@@ -439,8 +486,9 @@ Android resources.
 
 1. Delete the now-redundant `current-app` branch on GitHub — `main` already
    holds the same tree.
-2. Reserve the Pi's address on the router (§6) — one router setting that
-   removes every future `make-cert.sh` re-run, APK rebuild and board reflash.
+2. Make the Pi host its own Wi-Fi at `10.42.0.1` (§6) — one cutover that removes
+   every future `make-cert.sh` re-run, APK rebuild and board reflash. Do it while
+   the Pi still has internet, since it will not afterwards.
 3. Build the release APK (§8) and confirm the signer is not the debug key.
 4. Back up the Pi's `aqsms.db`, rehearse the migration on a copy, then apply it
    and provision the Owner/Admin (§6).

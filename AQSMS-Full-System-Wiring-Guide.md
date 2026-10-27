@@ -71,7 +71,7 @@ preserved under `archive/`. It is also recoverable from git history.
 | Pi storage | Existing compatible OS storage | Verify actual installation |
 | Pi power supply/regulator and cable | Rated for Pi and attached loads | Verify stable input under load |
 | ESP32 USB data cable | 1 | Bench programming/power |
-| Local Wi-Fi access point/router | Existing or supplied | **2.4 GHz only** — the ESP32 has no 5 GHz radio |
+| Local Wi-Fi access point/router | The Raspberry Pi itself (Bookworm + NetworkManager) | **2.4 GHz only** — the ESP32 has no 5 GHz radio. The Pi hosts this, so its address is fixed; see `PROJECT_HANDOVER.md` §6 |
 | Solar panel | Voltage, Voc, current, wattage unknown | **DO NOT CONNECT UNTIL VERIFIED** |
 | Solar power manager/charge controller | Exact model unknown | **DO NOT CONNECT UNTIL VERIFIED** |
 | Battery pack | Chemistry, series count, voltage, capacity unknown | **DO NOT CONNECT UNTIL VERIFIED** |

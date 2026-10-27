@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- *  RASPBERRY PI LOCAL API CONTRACT  —  v1.1
+ *  RASPBERRY PI LOCAL API CONTRACT  —  v1.2
  * ============================================================================
  *
  * This is the ONLY file that knows about the Pi's endpoint paths and JSON
@@ -27,7 +27,13 @@
  *                                                  "ph": 7.2|null,
  *                                                  "temperature_c": 28.1|null,
  *                                                  "dissolved_oxygen_mg_l": 6.4|null }
- *                                     | null }
+ *                                     | null,
+ *                                     "age_seconds": 12|null }
+ *                                    age_seconds is the age of the reading on the
+ *                                    PI's clock. It is null whenever reading is
+ *                                    null, and it is SIGNED: negative means the
+ *                                    reading is ahead of the Pi's clock and is
+ *                                    NOT fresh.
  *  GET  {base}/readings?limit=N  -> { "readings": [ <reading>, ... ] }
  *  GET  {base}/alerts?limit=N    -> { "alerts": [ { "id": "17",
  *                                     "timestamp": "...",
@@ -79,7 +85,7 @@ import {
   UserRole,
 } from "@/src/models/types";
 
-export const CONTRACT_STATUS = "v1.1 — Pi server contract defined (roles)";
+export const CONTRACT_STATUS = "v1.2 — Pi server contract defined (roles + reading age)";
 
 export const ENDPOINTS = {
   health: "/health",
@@ -167,7 +173,15 @@ export function mapLatestReading(json: unknown): LatestReadingResult {
   const pondName = typeof json.pond_name === "string" ? json.pond_name : null;
   // Accept either { reading: {...} } or the reading at the root.
   const raw = "reading" in json ? json.reading : json;
-  return { pondName, reading: raw === null ? null : mapReading(raw) };
+  const hasReading = raw !== null && raw !== undefined;
+  return {
+    pondName,
+    reading: hasReading ? mapReading(raw) : null,
+    // Age travels with the reading or not at all. A Pi that predates the field
+    // sends nothing, which numOrNull turns into null and the logic layer reads
+    // as "fall back to the legacy phone-clock estimate".
+    ageSeconds: hasReading ? numOrNull(json.age_seconds, "age_seconds") : null,
+  };
 }
 
 export function mapReadingHistory(json: unknown): Reading[] {

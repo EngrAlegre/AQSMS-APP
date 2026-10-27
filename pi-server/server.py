@@ -68,6 +68,33 @@ def _now_utc_iso():
     return datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
+def _reading_age_seconds(timestamp_text):
+    """Age of a stored reading, in seconds, measured on the Pi's own clock.
+
+    Both ends of the subtraction come from this Pi: the ESP32 stamps each reading
+    with the time /esp32/ping handed it, and "now" is read here. So the result is
+    a true duration even when the Pi has no internet time source and its clock
+    drifts -- which is exactly the situation once the Pi hosts its own Wi-Fi.
+
+    Deliberately SIGNED and NOT clamped to zero. A negative result means the
+    stored reading is ahead of the Pi's clock (the clock was moved backwards
+    after the row was written), and the app must never read that as fresh.
+    Clamping it to 0 would do the opposite: it would make a dead board look
+    current. Sub-second jitter from the ESP32's own drift is absorbed by int(),
+    which truncates toward zero.
+
+    None when the timestamp is absent or unparseable.
+    """
+    try:
+        then = dateutil.parser.isoparse(timestamp_text)
+    except (ValueError, TypeError):
+        return None
+    if then.tzinfo is None:
+        then = then.replace(tzinfo=datetime.timezone.utc)
+    delta = datetime.datetime.now(datetime.timezone.utc) - then
+    return int(delta.total_seconds())
+
+
 def _as_number(value, field):
     """Return (number_or_None, error_message_or_None).
 
@@ -414,7 +441,7 @@ def get_latest_reading(current_account):
     row = cursor.fetchone()
     conn.close()
 
-    res = {"pond_name": POND_NAME, "reading": None}
+    res = {"pond_name": POND_NAME, "reading": None, "age_seconds": None}
     if row:
         res["reading"] = {
             "timestamp": row['timestamp'],
@@ -422,6 +449,10 @@ def get_latest_reading(current_account):
             "temperature_c": row['temperature_c'],
             "dissolved_oxygen_mg_l": row['dissolved_oxygen_mg_l']
         }
+        # Same-clock age of this reading. Present only when there IS a reading:
+        # with reading == None the app must show No Data, never Live, and an age
+        # would be meaningless.
+        res["age_seconds"] = _reading_age_seconds(row['timestamp'])
     return jsonify(res)
 
 

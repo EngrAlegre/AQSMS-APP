@@ -15,6 +15,19 @@ export interface Reading {
 export interface LatestReadingResult {
   pondName: string | null;
   reading: Reading | null;
+  /**
+   * Age of `reading` in seconds, measured entirely on the Pi's clock
+   * (`now_on_pi - reading.timestamp`). null when there is no reading, and null
+   * from a Pi old enough not to send the field.
+   *
+   * This is deliberately NOT on `Reading`: the age of the latest reading is a
+   * property of *now*, not of a historical record. A stored reading has a
+   * timestamp; only "the newest one, as of this moment" has an age.
+   *
+   * It is signed — a negative value means the reading is ahead of the Pi's clock
+   * and must never be treated as fresh. See src/logic/status.ts.
+   */
+  ageSeconds: number | null;
 }
 
 /**

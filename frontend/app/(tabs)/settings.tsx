@@ -204,7 +204,8 @@ export default function Settings() {
             : null}
           <Text style={styles.help}>
             Values between safe and unsafe limits show as Warning. Species and limits are not confirmed. Final thresholds will be entered after
-            written approval and are not editable in the app. A reading older than {STALE_AFTER_MINUTES} minutes is marked Stale.
+            written approval and are not editable in the app. Readings are timed by the Pi&apos;s own clock, so a clock that drifts cannot make an old
+            reading look current. A reading older than {STALE_AFTER_MINUTES} minutes is marked Stale.
           </Text>
         </View>
 

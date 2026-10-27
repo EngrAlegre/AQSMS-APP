@@ -48,16 +48,36 @@ if [ -z "$PRIMARY" ]; then
 fi
 
 SHORT="$(hostname -s 2>/dev/null || echo raspberrypi)"
-SAN="IP:${PRIMARY},IP:127.0.0.1,DNS:localhost,DNS:${SHORT},DNS:${SHORT}.local"
+
+# The address appears TWICE -- as an IP: entry and as a DNS: entry. The DNS:
+# copy is NOT redundant and must not be tidied away.
+#
+# The ESP32 board does not use OpenSSL. It uses mbedTLS 2.28.7 as patched by
+# ESP-IDF (arduino-esp32 core 2.0.17), and that x509 code has no handling for
+# iPAddress SAN entries at all -- it knows only dNSName and emailAddress, and
+# prints IP: entries as "<unsupported>". The board connects by raw address and
+# so hands mbedTLS the STRING "10.42.0.1"; mbedTLS compares that string against
+# the dNSName entries, finds nothing, and fails the handshake with CN_MISMATCH
+# -- while the chain itself verifies perfectly against the CA baked into the
+# sketch. The error reads like a trust failure and is not one.
+#
+# Android DOES match IP: entries. So without the DNS: copy the certificate
+# works on the phone and fails on the board. Found on hardware: the board's own
+# SAN dump showed two "<unsupported>" lines where the IP: entries should be.
+#
+# (Loopback needs no twin -- nothing connects to it by name. The extras loop
+# below keeps the two forms in step for any further address.)
+SAN="IP:${PRIMARY},IP:127.0.0.1,DNS:${PRIMARY},DNS:localhost,DNS:${SHORT},DNS:${SHORT}.local"
 
 # Any extra arguments become additional names. A bare dotted-quad is treated as
-# an IP address, anything else as a hostname.
+# an IP address, anything else as a hostname. An extra address gets a DNS: twin
+# for the same reason PRIMARY does.
 shift || true
 for extra in "$@"; do
   [ -n "$extra" ] || continue
   case "$extra" in
     *[!0-9.]*) SAN="${SAN},DNS:${extra}" ;;
-    *)         SAN="${SAN},IP:${extra}" ;;
+    *)         SAN="${SAN},IP:${extra},DNS:${extra}" ;;
   esac
 done
 
@@ -116,16 +136,17 @@ Next:
   1. Start the API over HTTPS:
          ./serve.sh
 
-  2. Copy the CA certificate to the build machine, into the app project:
-         frontend/certs/aqsms-ca.crt
-
-     From the machine that holds the app source:
-         scp <pi-user>@${PRIMARY}:${CA_CRT} frontend/certs/aqsms-ca.crt
-
-  3. Rebuild the APK, then enter this address in the app:
+  2. Enter this address in the app:
          https://${PRIMARY}:8443
 
-If you change the Pi's address later, re-run this script with the new address
-and rebuild the app -- the certificate names the exact address it was issued
-for. The certificate expires $SRV_DAYS days from now.
+If step 2 above said "Reusing", the app already trusts this CA and an address
+change alone needs NO rebuild -- just re-enter the address. Only if the CA was
+newly created do you need to copy it over and rebuild:
+
+         scp <pi-user>@${PRIMARY}:${CA_CRT} frontend/certs/aqsms-ca.crt
+
+The certificate names the exact address it was issued for, so if the Pi's
+address ever changes again, re-run this script with the new address. Give the Pi
+a fixed address if you can (see PHONE_TO_PI_SETUP.md) so that never happens.
+The certificate expires $SRV_DAYS days from now.
 EOF

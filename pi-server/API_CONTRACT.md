@@ -230,7 +230,8 @@ the action is not, so the app stays signed in and refuses the action.
     "ph": 7.2,
     "temperature_c": 22.5,
     "dissolved_oxygen_mg_l": 6.8
-  }
+  },
+  "age_seconds": 12
 }
 ```
 
@@ -239,12 +240,29 @@ With no readings stored — the state of a fresh install:
 ```json
 {
   "pond_name": "Test Pond 1",
-  "reading": null
+  "reading": null,
+  "age_seconds": null
 }
 ```
 
 `reading: null` means **No Data**. It must never be rendered as `0`, and it must
-never be rendered as **Live**.
+never be rendered as **Live**. `age_seconds` is `null` in exactly that case, so
+there is never an age to display without a reading to attach it to.
+
+`age_seconds` is the age of the newest reading **measured on the Pi's own clock**
+(`now_on_pi − reading.timestamp`). Reading timestamps originate from the Pi's
+clock — the ESP32 stamps each one with the time `GET /esp32/ping` returned — so
+the subtraction is a true duration even when the Pi has no internet time source
+and its clock drifts. That matters: the Pi **must not** be assumed to know the
+real time once it hosts its own Wi-Fi network, because it then has no route to a
+time server.
+
+It is **signed**, and the app must treat it that way. A negative value means the
+stored reading is *ahead* of the Pi's clock, which happens if the clock was moved
+backwards after the row was written. A negative age is **not fresh** — a client
+that treats it as "just now" would show a live dashboard for a board that stopped
+sending hours ago. Compare the app's own clock for nothing here: the whole point
+of the field is that only one machine's clock is ever involved.
 
 ### `GET /readings?limit=N`
 

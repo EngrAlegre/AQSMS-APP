@@ -36,10 +36,10 @@ class H(BaseHTTPRequestHandler):
             if MODE == "malformed":
                 return self.send(200, "<html>not json</html>")
             if MODE == "missing":
-                return self.send(200, {"pond_name": "Test Pond 1", "reading": reading(1, ph=None, t=27.0, do=None)})
+                return self.send(200, {"pond_name": "Test Pond 1", "reading": reading(1, ph=None, t=27.0, do=None), "age_seconds": 60})
             if MODE == "empty":
-                return self.send(200, {"pond_name": "Test Pond 1", "reading": None})
-            return self.send(200, {"pond_name": "Test Pond 1", "reading": reading(1)})
+                return self.send(200, {"pond_name": "Test Pond 1", "reading": None, "age_seconds": None})
+            return self.send(200, {"pond_name": "Test Pond 1", "reading": reading(1), "age_seconds": 60})
         if p == "/readings":
             return self.send(200, {"readings": [] if MODE == "empty" else [reading(i * 5) for i in range(10)]})
         if p == "/alerts":

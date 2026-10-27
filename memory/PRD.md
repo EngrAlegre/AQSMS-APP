@@ -101,8 +101,8 @@ persisted in flash. The earlier PlatformIO project is retired to
 
 ## Verification status
 
-- **Verified locally:** type-check and lint clean; 113 tests across four suites
-  (`logic` 27, `pi_server` 22, `registration` 28, `roles` 36), the last three
+- **Verified locally:** type-check and lint clean; 125 tests across four suites
+  (`logic` 37, `pi_server` 24, `registration` 28, `roles` 36), the last three
   against a real Flask server and a real SQLite database. An ad-hoc driver (not
   kept in the repo) additionally exercised `provision_admin.py`,
   `setup_account.py`, `reset_password.py` and the schema migration through 54

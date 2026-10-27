@@ -63,7 +63,7 @@
  * AQSMS_USE_TLS 0 → plain HTTP.  The device key and every reading travel in
  *                   clear text.  Bench bring-up only.
  * ------------------------------------------------------------------------ */
-#define AQSMS_PI_HOST                "192.168.1.50"
+#define AQSMS_PI_HOST                "10.42.0.1"
 #define AQSMS_PI_PORT                8443
 #define AQSMS_USE_TLS                1
 
@@ -86,7 +86,35 @@
  * ------------------------------------------------------------------------ */
 static const char AQSMS_PI_CA_PEM[] =
 "-----BEGIN CERTIFICATE-----\n"
-"REPLACE_WITH_THE_CONTENTS_OF_pi-server_certs_aqsms-ca.crt\n"
+"MIIFRjCCAy6gAwIBAgIUK12DhOtVc+LKdAbixSo6q+jLCnIwDQYJKoZIhvcNAQEL\n"
+"BQAwKTEXMBUGA1UEAwwOQVFTTVMgTG9jYWwgQ0ExDjAMBgNVBAoMBUFRU01TMB4X\n"
+"DTI2MTAwOTA3MTAzOFoXDTM2MTAwNjA3MTAzOFowKTEXMBUGA1UEAwwOQVFTTVMg\n"
+"TG9jYWwgQ0ExDjAMBgNVBAoMBUFRU01TMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A\n"
+"MIICCgKCAgEAu4jkqhQwwqiUxJ6NBsU/Z3O9HtUdJ4JWnQg8WdC+TWlG8VT6iQkF\n"
+"bfq4puT2KwPmqGI8jkUhBTiO1KHOtmwpp1WNQ1A3gcDPPU78DbT+Rx2gZ87vcitM\n"
+"cPjJEQOrd9kK27HeGtQfbdTwY4YWyl/gfaS2qUc8jmFBXPnRztoLeKwMhapG9Kyf\n"
+"px3eb8f7pEZ+ZhkeZQLDvYfgnV7f7+QpP5dKhv5P0odxz/LZxk/m5bsw5lCZcK0h\n"
+"gzQW4S+BdM3Cg/KgUJkU/hUMh3Ly77+0mUbiVobuNDSdAufIeAsNmb8C9cgZg4NI\n"
+"PeN2P7zv4RGGNknrThKpxz46SS46TjgyPg3O9ZPliAk6gdjFM3/SAF9Ji3qV2Zyh\n"
+"yybf+xGAb1mp+Ac2j9ZNQTkG2I+mSjs/bGXZRa8aHL3qqxAOHeRwKGlqpDLlzCJJ\n"
+"f9+gHqeS4UJa23gyXUqvoyxatTW0MmDyDGGNebUphJMv8PtSLlNRNv9sRP6ELBa1\n"
+"Fqri0ejLdtiCIAEGxRSgUGH7DWOuQ4TUjWTk3AVsWgm6SUyWta+rp5luCp7aDg47\n"
+"AE5WfZcKLcIdfWzXlKSe2kiztq+Gk9NEngxrwvbqdaG0NH3Ay8pVf/+g019R48Ez\n"
+"/65W9UVARxWUtvv2Jxwij6rJiJ9cgESK5xZL9BXIZfdOGpoiC+TlpAUCAwEAAaNm\n"
+"MGQwHQYDVR0OBBYEFFBO2Rl7nHhEEUBY1pdTArOXTimCMB8GA1UdIwQYMBaAFFBO\n"
+"2Rl7nHhEEUBY1pdTArOXTimCMBIGA1UdEwEB/wQIMAYBAf8CAQAwDgYDVR0PAQH/\n"
+"BAQDAgEGMA0GCSqGSIb3DQEBCwUAA4ICAQCA3k4tMTM0WXt1C9u9hqLd+e3USfGq\n"
+"ceG0kjzGBevDdxKvpeDrasz1Da4rEqPCq8tb21m7DiI43sm8HSEBOw/L6NzAqVEx\n"
+"a9hpNVMeOEpXMnfNOcIztsd7qLHZKAyC/a/gOSuzd2t4E6NyiYOYgd0kiRfNcbpc\n"
+"EK0FXWfTGtMKysMTpt9B0lN+1iYSSR/OaJgIktReMyfycnF23SPe9euvH7Yd0IDh\n"
+"3K9CPDNzYzEvONluqM1zPDwY1aurCcvVc6lNlLOKsIPcpITHWpSN5brvA9SqokOy\n"
+"2DcaVftXhz4Kwwo+Eo8wOKlgaH3yzm4f3Xcv1x1Kx3g0Rsq/ZGYANXx7X/HG/VVo\n"
+"XWKoRu9wVmtHuGvbTXbCT1R7/lWkAyYxKrUWVsj+4Ki4Y2sIdPTnx8yPpujO/3Mf\n"
+"JcUIPNI9Ohot/m3Lve7j1ZJx8cntEM81hIfOYCfHGeY3ybDRCiZaf6MXrUDNNLxA\n"
+"dopsrPVst6XF2AK7fLLiMK9IJEcncIXOS31L+QYOjXNBTR1aWIZGQKDzN8LuZ/DJ\n"
+"TxZBzcx1qly7d2yaebec2EkKdmC5iWPrRxuHgZSuaCG6B2OGcFP++D8PN+FwBEJO\n"
+"/pmMKT3ozpOyAXQCexyfrlUIrV9zPw8Oy+gr7AEIZCBvePDH2ahfaDlMRIbG8Xty\n"
+"gkjMDvDsJbYDgA==\n"
 "-----END CERTIFICATE-----\n";
 
 /* ---------------------------------------------------------------------------
@@ -137,11 +165,11 @@ static const char AQSMS_PI_CA_PEM[] =
  * twice.  Calibrating on board voltage and then dividing again is the single
  * most common way to get a confident wrong answer.
  * ------------------------------------------------------------------------ */
-#define AQSMS_PH_CALIBRATED          0
-#define AQSMS_PH_CAL_V1_MV           0.0f   // e.g. buffer 4.00 at 25 C
-#define AQSMS_PH_CAL_V1_PH           4.00f
-#define AQSMS_PH_CAL_V2_MV           0.0f   // e.g. buffer 7.00 at 25 C
-#define AQSMS_PH_CAL_V2_PH           7.00f
+#define AQSMS_PH_CALIBRATED          1
+#define AQSMS_PH_CAL_V1_MV           2130.2f   // board mV in pH 7.00 buffer
+#define AQSMS_PH_CAL_V1_PH           7.00f
+#define AQSMS_PH_CAL_V2_MV           2164.7f   // board mV in pH 9.18 buffer (borax)
+#define AQSMS_PH_CAL_V2_PH           9.18f
 #define AQSMS_PH_VALID_MV_MIN        0.0f   // board output plausibility window
 #define AQSMS_PH_VALID_MV_MAX        5000.0f
 
@@ -2231,6 +2259,7 @@ static void console_help() {
     Serial.println("  w                      wifi state");
     Serial.println("  p                      GET /esp32/ping (stores nothing)");
     Serial.println("  t                      clock state");
+    Serial.println("  mV                     raw calibration voltages + temperature");
     Serial.println("  s                      sample now, post nothing");
     Serial.println("  S                      sample now and post");
     Serial.println("  thr                    show approved-limit configuration");
@@ -2305,6 +2334,65 @@ static void console_outbox() {
     }
 }
 
+/* ---------------------------------------------------------------------------
+ * Calibration voltages -- the numbers the pH/DO constants are made of
+ * ---------------------------------------------------------------------------
+ * The calibration constants are BOARD voltages recorded in reference solutions
+ * (section 1.7 and 1.8).  Until this command existed the sketch printed no
+ * voltage anywhere, so "record the stable ADC voltage" could not actually be
+ * carried out from the console.
+ *
+ * This prints the SAME two measurements sensors_read() takes, plus the
+ * temperature that DO's air-saturated point is recorded at.  It deliberately
+ * works while AQSMS_PH_CALIBRATED and AQSMS_DO_CALIBRATED are still 0 -- that
+ * is exactly when it is needed.
+ *
+ * Nothing is stored, posted, evaluated or alerted.  It is a meter, not a
+ * measurement: it must not be mistaken for data.
+ *
+ * The readings repeat so drift and settling are visible.  A value that is still
+ * moving is not yet a calibration point, and recording it produces a confident
+ * wrong number.  Each row costs ~1.1 s (two 32-sample ADC averages plus the
+ * 750 ms DS18B20 conversion), so the command blocks the loop for ~12 s.
+ * ------------------------------------------------------------------------ */
+#define AQSMS_CAL_SAMPLES       8
+#define AQSMS_CAL_INTERVAL_MS   400
+
+static void console_millivolts() {
+    Serial.println("[cal] raw voltages for calibration — nothing is stored or posted");
+    Serial.printf("[cal] pH divider ratio in force: %.2f  (board mV = junction mV x ratio)\n",
+                  AQSMS_PH_DIVIDER_RATIO);
+    Serial.println("[cal] Hold the probe in the reference solution and wait until the");
+    Serial.println("[cal] numbers stop moving before recording one.");
+    Serial.println();
+
+    for (uint8_t n = 0; n < AQSMS_CAL_SAMPLES; n++) {
+        float ph_junction_mv = adc_mean_millivolts(AQSMS_PIN_PH_ADC);
+        float ph_board_mv    = ph_junction_mv * AQSMS_PH_DIVIDER_RATIO;
+        float do_mv          = adc_mean_millivolts(AQSMS_PIN_DO_ADC);
+
+        float t = NAN;
+        bool  have_t = ds_read_c(t);
+
+        Serial.printf("[cal] %u/%u  pH junction %7.1f mV  pH board %7.1f mV  DO board %7.1f mV",
+                      (unsigned)(n + 1), (unsigned)AQSMS_CAL_SAMPLES,
+                      ph_junction_mv, ph_board_mv, do_mv);
+        if (have_t) Serial.printf("  temp %6.2f C\n", t);
+        else        Serial.println("  temp NOT MEASURED");
+
+        if (n + 1 < AQSMS_CAL_SAMPLES) delay(AQSMS_CAL_INTERVAL_MS);
+    }
+
+    Serial.println();
+    Serial.println("[cal] where each number goes (section 1 of this file):");
+    Serial.println("[cal]   AQSMS_PH_CAL_V1_MV/_V1_PH  <- pH BOARD mV in buffer 1, and that buffer's pH");
+    Serial.println("[cal]   AQSMS_PH_CAL_V2_MV/_V2_PH  <- pH BOARD mV in buffer 2, and that buffer's pH");
+    Serial.println("[cal]   AQSMS_DO_CAL_V1_MV/_V1_MGL <- DO BOARD mV in air-saturated water, and its mg/L");
+    Serial.println("[cal]   AQSMS_DO_CAL_V2_MV/_V2_MGL <- DO BOARD mV in zero-oxygen solution (usually 0.0)");
+    Serial.println("[cal]   AQSMS_DO_CAL_TEMP_C        <- the temp above during the air-saturated point");
+    Serial.println("[cal] Set CALIBRATED to 1 only after the constants are recorded.");
+}
+
 static void handle_setthr(char *args) {
     char param[32];
     float smin, smax, wmin, wmax;
@@ -2363,6 +2451,7 @@ static void handle_command(const String &line) {
         }
     }
     else if (!strcmp(cmd, "t"))              console_time();
+    else if (!strcmp(cmd, "mV"))             console_millivolts();
     else if (!strcmp(cmd, "s")) {
         Sample s = sensors_read();
         Serial.print("[sample] ");

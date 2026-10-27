@@ -20,7 +20,7 @@ import { ApiError, toApiError } from "../src/api/errors";
 import { isPrivateIPv4 } from "../src/api/httpClient";
 import { createRealSource, testPiConnection } from "../src/api/realSource";
 import { deriveConnection } from "../src/logic/connection";
-import { statusFor } from "../src/logic/status";
+import { isStaleReading, statusFor } from "../src/logic/status";
 import { PARAMETER_ORDER } from "../src/models/parameters";
 
 let pass = 0;
@@ -191,6 +191,9 @@ async function postJson(url: string, body: unknown, headers: Record<string, stri
       const latest = await createRealSource(base, token).getLatest();
       assert.equal(latest.pondName, "Test Pond 1");
       assert.equal(latest.reading, null);
+      // No reading, no age. The app shows No Data, never Live, so there must be
+      // nothing here for it to age.
+      assert.equal(latest.ageSeconds, null);
     });
 
     await t("empty DB: history and alerts are empty lists", async () => {
@@ -363,6 +366,37 @@ async function postJson(url: string, body: unknown, headers: Record<string, stri
       assert.equal(statusFor("temperature", 28.4, th), "safe");
       assert.equal(statusFor("dissolvedOxygen", 2.4, th), "unsafe");
       assert.equal(statusFor("dissolvedOxygen", null, th), "no_data");
+    });
+
+    // ---- Reading age -------------------------------------------------------
+    // age_seconds exists because the app must never subtract two machines'
+    // clocks. It is measured entirely on the Pi, so it stays correct after the
+    // Pi loses its internet time source and its clock begins to drift. These
+    // tests run last because the second one rewrites the readings table.
+    await t("a just-posted reading reports a small, non-negative age_seconds", async () => {
+      const latest = await createRealSource(base, token).getLatest();
+      assert.equal(typeof latest.ageSeconds, "number");
+      assert.ok(latest.ageSeconds! >= 0 && latest.ageSeconds! <= 60, `expected a fresh age, got ${latest.ageSeconds}`);
+    });
+
+    await t("a back-dated reading is reported as stale, aged on the Pi's clock", async () => {
+      run("DELETE FROM readings");
+      const twentyMinAgo = new Date(Date.now() - 20 * 60000).toISOString().replace(/\.\d{3}Z$/, "Z");
+      run(
+        `INSERT INTO readings (timestamp, ph, temperature_c, dissolved_oxygen_mg_l) VALUES ('${twentyMinAgo}', 7.1, 28.0, 6.2)`,
+      );
+      const latest = await createRealSource(base, token).getLatest();
+      assert.ok(latest.reading, "expected the back-dated row to be the newest reading");
+      assert.ok(
+        latest.ageSeconds! >= 1195 && latest.ageSeconds! <= 1205,
+        `expected ~1200 s, got ${latest.ageSeconds}`,
+      );
+      const now = Date.now();
+      assert.equal(
+        isStaleReading({ timestamp: latest.reading!.timestamp, ageSeconds: latest.ageSeconds, ageAsOfMs: now, nowMs: now }),
+        true,
+        "a 20-minute-old reading must not read as fresh",
+      );
     });
   } finally {
     proc.kill();

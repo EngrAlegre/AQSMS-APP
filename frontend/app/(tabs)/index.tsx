@@ -14,8 +14,8 @@ import { SensorCard, SensorCardSkeleton } from "@/src/components/SensorCard";
 import { POND_NAME, STALE_AFTER_MINUTES } from "@/src/config";
 import { useNow } from "@/src/hooks/useNow";
 import { useLatestReading, useThresholds } from "@/src/hooks/usePondData";
-import { deriveConnection } from "@/src/logic/connection";
-import { formatAgo, formatClock, formatDateTime, isStale, statusFor } from "@/src/logic/status";
+import { deriveConnection, freshnessHeadline } from "@/src/logic/connection";
+import { formatAge, formatAgo, isStaleAgeSeconds, readingAgeSeconds, statusFor } from "@/src/logic/status";
 import { PARAMETER_ORDER } from "@/src/models/parameters";
 import { usesNativeTabs } from "@/src/navigation";
 import { checkLocalNetwork } from "@/src/network/networkCheck";
@@ -35,7 +35,19 @@ export default function Dashboard() {
   const [wifiHint, setWifiHint] = useState<string | null>(null);
 
   const reading = latest.data?.reading ?? null;
-  const stale = reading ? isStale(reading.timestamp, now) : false;
+  // Age the reading from single-clock intervals only: the Pi's own age_seconds,
+  // advanced by the phone's elapsed time since that response arrived. The one
+  // thing we never do is subtract the phone's clock from the Pi's stored
+  // timestamp -- they drift apart once the Pi has no internet time source.
+  const ageSeconds = reading
+    ? readingAgeSeconds({
+        timestamp: reading.timestamp,
+        ageSeconds: latest.data?.ageSeconds,
+        ageAsOfMs: latest.dataUpdatedAt,
+        nowMs: now,
+      })
+    : null;
+  const stale = ageSeconds !== null && isStaleAgeSeconds(ageSeconds);
   const err = latest.error ? toApiError(latest.error) : null;
   const conn = deriveConnection({ hasData: !!reading, isLoading: latest.isLoading, error: latest.error, stale });
   const pondName = latest.data?.pondName ?? POND_NAME;
@@ -74,7 +86,7 @@ export default function Dashboard() {
         <View style={styles.metaRow}>
           <Clock size={16} color={colors.onSurfaceTertiary} />
           <Text testID="last-updated-text" style={styles.metaText}>
-            {reading ? `Last reading ${formatClock(reading.timestamp)} · ${formatAgo(reading.timestamp)}` : "No reading received yet"}
+            {freshnessHeadline(conn, ageSeconds)}
           </Text>
         </View>
       </ScreenHeader>
@@ -99,7 +111,7 @@ export default function Dashboard() {
           <Banner
             testID="dashboard-cached-banner"
             tone="warning"
-            title={`Not live · showing data received at ${formatClock(latest.dataUpdatedAt)}`}
+            title={`Not live · showing data received ${formatAgo(latest.dataUpdatedAt)}`}
             message={`Latest refresh failed: ${err.message}`}
           />
         ) : null}
@@ -111,7 +123,11 @@ export default function Dashboard() {
             testID="stale-reading-banner"
             tone="warning"
             title="Reading is stale"
-            message={`The latest reading is from ${formatDateTime(reading.timestamp)}, older than ${STALE_AFTER_MINUTES} minutes. Sensors or the Pi may have stopped sending data.`}
+            message={
+              ageSeconds !== null && ageSeconds >= 0
+                ? `The newest reading is ${formatAge(ageSeconds)}, past the ${STALE_AFTER_MINUTES}-minute limit. Sensors or the Pi may have stopped sending data.`
+                : `The newest reading is timestamped ahead of the Pi's clock, so it cannot be trusted as current. Sensors or the Pi may have stopped sending data.`
+            }
           />
         ) : null}
 
@@ -149,7 +165,7 @@ export default function Dashboard() {
 
         {reading ? (
           <Text style={styles.footnote}>
-            Reading time {formatDateTime(reading.timestamp)}. Received by app {formatClock(latest.dataUpdatedAt)}. Auto-refresh every 30 s while open.
+            Latest reading: {formatAge(ageSeconds ?? -1)}. Received by the app {formatAgo(latest.dataUpdatedAt)}. Auto-refresh every 30 s while open.
           </Text>
         ) : null}
       </ScrollView>

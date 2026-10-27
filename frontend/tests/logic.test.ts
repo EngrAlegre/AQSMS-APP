@@ -17,8 +17,16 @@ import { ApiError } from "../src/api/errors";
 import { isPrivateIPv4, normalizeBaseUrl } from "../src/api/httpClient";
 import { mapAlerts, mapLatestReading, mapReadingHistory, mapThresholds } from "../src/api/piApiContract";
 import { createRealSource, testPiConnection } from "../src/api/realSource";
-import { deriveConnection } from "../src/logic/connection";
-import { evaluateStatus, isStale, statusFor } from "../src/logic/status";
+import { deriveConnection, freshnessHeadline } from "../src/logic/connection";
+import {
+  evaluateStatus,
+  formatAge,
+  isStale,
+  isStaleAgeSeconds,
+  isStaleReading,
+  readingAgeSeconds,
+  statusFor,
+} from "../src/logic/status";
 import { PARAMETER_ORDER } from "../src/models/parameters";
 import {
   buildRawReadings,
@@ -122,6 +130,92 @@ async function withServer(port: number, mode: string, fn: () => Promise<void>) {
     const now = Date.now();
     assert.equal(isStale(new Date(now - 9 * 60000).toISOString(), now), false);
     assert.equal(isStale(new Date(now - 11 * 60000).toISOString(), now), true);
+  });
+
+  // ---- Reading age: one clock at a time ------------------------------------
+  // The Pi has no internet time source once it hosts its own Wi-Fi, so its clock
+  // drifts. Every case below is a combination of clocks that the old
+  // "phoneNow - reading.timestamp" subtraction got wrong in one direction or
+  // the other. The two that matter most are the false "live" and the false
+  // "stale", because both send the farmer to the pond -- or fail to.
+  await t("age: the Pi's own age_seconds is used, not the phone clock", () => {
+    const now = Date.now();
+    const ts = new Date(now - 30 * 60000).toISOString();
+    assert.equal(readingAgeSeconds({ timestamp: ts, ageSeconds: 1800, ageAsOfMs: now, nowMs: now }), 1800);
+    // 30 s later the phone has simply counted 30 more seconds of its own.
+    assert.equal(readingAgeSeconds({ timestamp: ts, ageSeconds: 1800, ageAsOfMs: now, nowMs: now + 30_000 }), 1830);
+  });
+
+  await t("age: a Pi clock 6 h ahead cannot make a 45-min-old reading look live", () => {
+    const now = Date.now();
+    const ts = new Date(now + 6 * 3600_000 - 45 * 60000).toISOString();
+    // The old two-clock subtraction goes negative here and formatAgo masked it
+    // as "just now": a dead board showing a live dashboard.
+    assert.equal(isStale(ts, now), false);
+    // The Pi's own age is immune to that, and it is what we now act on.
+    assert.equal(isStaleReading({ timestamp: ts, ageSeconds: 2700, ageAsOfMs: now, nowMs: now }), true);
+  });
+
+  await t("age: a Pi clock 30 min behind does not make a fresh reading look stale", () => {
+    const now = Date.now();
+    const ts = new Date(now - 30 * 60000).toISOString();
+    // This is the false "Stale" a drifting Pi produced on a perfectly good reading.
+    assert.equal(isStale(ts, now), true);
+    assert.equal(isStaleReading({ timestamp: ts, ageSeconds: 0, ageAsOfMs: now, nowMs: now }), false);
+  });
+
+  await t("age: a negative age is never fresh", () => {
+    assert.equal(isStaleAgeSeconds(-120), true);
+    assert.equal(formatAge(-120), "unknown age");
+    // Even with no age from the Pi at all, a timestamp in the future must not be
+    // read as fresh -- the old code returned "just now" for exactly this.
+    const now = Date.now();
+    const future = new Date(now + 90 * 60000).toISOString();
+    assert.equal(isStaleReading({ timestamp: future, ageSeconds: null, ageAsOfMs: now, nowMs: now }), true);
+  });
+
+  await t("age: falls back to the phone clock only when the Pi sends no age", () => {
+    const now = Date.now();
+    const mk = (min: number) => new Date(now - min * 60000).toISOString();
+    assert.equal(isStaleReading({ timestamp: mk(9), ageSeconds: null, ageAsOfMs: now, nowMs: now }), false);
+    assert.equal(isStaleReading({ timestamp: mk(11), ageSeconds: null, ageAsOfMs: now, nowMs: now }), true);
+  });
+
+  await t("age: 10-minute boundary, and a backward phone jump cannot freshen a reading", () => {
+    assert.equal(isStaleAgeSeconds(599), false);
+    assert.equal(isStaleAgeSeconds(600), false);
+    assert.equal(isStaleAgeSeconds(601), true);
+    const now = Date.now();
+    // nowMs earlier than ageAsOfMs means the phone's clock moved backwards. The
+    // elapsed term clamps at 0, so the reading is never younger than the Pi said.
+    assert.equal(
+      readingAgeSeconds({ timestamp: new Date(now).toISOString(), ageSeconds: 900, ageAsOfMs: now, nowMs: now - 60_000 }),
+      900,
+    );
+  });
+
+  await t("formatAge buckets", () => {
+    assert.equal(formatAge(0), "just now");
+    assert.equal(formatAge(59), "just now");
+    assert.equal(formatAge(60), "1 min old");
+    assert.equal(formatAge(900), "15 min old");
+    assert.equal(formatAge(10800), "3 h old");
+    assert.equal(formatAge(172800), "2 d old");
+    assert.equal(formatAge(-1), "unknown age");
+    assert.equal(formatAge(Number.NaN), "unknown age");
+  });
+
+  await t("freshnessHeadline leads with freshness, never a clock time", () => {
+    assert.equal(freshnessHeadline("live", 5), "Live · updated just now");
+    assert.equal(freshnessHeadline("live", 300), "Live · last reading 5 min old");
+    assert.equal(freshnessHeadline("stale", 10800), "Not live · 3 h old");
+    assert.equal(freshnessHeadline("cached", 120), "Not live · 2 min old");
+    assert.equal(freshnessHeadline("no_data", null), "No reading received yet");
+    assert.equal(freshnessHeadline("unreachable", null), "Not live · Can't reach the Pi");
+    // No reassuring age is printed next to "Not live" when the age is nonsense...
+    assert.equal(freshnessHeadline("stale", -60), "Not live");
+    // ...or when it is so small that "Not live · just now" would contradict itself.
+    assert.equal(freshnessHeadline("cached", 5), "Not live");
   });
 
   // ---- Connection state ----------------------------------------------------
@@ -241,6 +335,20 @@ async function withServer(port: number, mode: string, fn: () => Promise<void>) {
     assert.equal(isStale(r.timestamp, Date.now()), true);
   });
 
+  await t("mapLatestReading carries age_seconds, and refuses a non-number", () => {
+    const raw = buildRawReadings("normal")[0];
+    assert.equal(mapLatestReading({ pond_name: "Test Pond 1", reading: raw, age_seconds: 42 }).ageSeconds, 42);
+    // A Pi old enough not to send the field yields null, which the logic layer
+    // reads as "fall back to the phone-clock estimate".
+    assert.equal(mapLatestReading({ reading: raw }).ageSeconds, null);
+    // No reading means no age, whichever way the Pi words it -- the app shows
+    // No Data, never Live.
+    assert.equal(mapLatestReading({ reading: null, age_seconds: null }).ageSeconds, null);
+    assert.equal(mapLatestReading({ reading: null, age_seconds: 30 }).ageSeconds, null);
+    // A string where a number belongs is a malformed response, not a default.
+    assert.throws(() => mapLatestReading({ reading: raw, age_seconds: "42" }), /age_seconds/);
+  });
+
   // ---- Real-mode client against the MOCK Pi --------------------------------
   const lanIp = process.argv[2] ?? lanAddress();
   if (!lanIp) {
@@ -261,6 +369,16 @@ async function withServer(port: number, mode: string, fn: () => Promise<void>) {
         assert.equal(a[0].status, "unsafe");
         assert.equal(a[0].parameter, "dissolvedOxygen");
         assert.equal((await src.getThresholds()).approved, false);
+      });
+      await t("real: latest carries age_seconds, and a 1-min-old reading is not stale", async () => {
+        const l = await createRealSource(base(8765), null).getLatest();
+        assert.equal(typeof l.ageSeconds, "number");
+        assert.ok(l.ageSeconds! >= 55 && l.ageSeconds! <= 130, `unexpected age_seconds ${l.ageSeconds}`);
+        const now = Date.now();
+        assert.equal(
+          isStaleReading({ timestamp: l.reading!.timestamp, ageSeconds: l.ageSeconds, ageAsOfMs: now, nowMs: now }),
+          false,
+        );
       });
     });
 
@@ -296,6 +414,8 @@ async function withServer(port: number, mode: string, fn: () => Promise<void>) {
           deriveConnection({ hasData: !!latest.reading, isLoading: false, error: null, stale: false }),
           "no_data",
         );
+        // No reading => no age to display, and nothing for the dashboard to age.
+        assert.equal(latest.ageSeconds, null);
       });
     });
 

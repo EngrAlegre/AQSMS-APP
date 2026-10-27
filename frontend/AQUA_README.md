@@ -167,11 +167,14 @@ Full step-by-step: `../PHONE_TO_PI_SETUP.md`.
   the last two are used only for the "wrong Wi-Fi" hint.
 - **Do not expose the Pi API to the public internet.** The phone must be on the
   same network as the Pi.
-- Give the Pi a fixed address (a DHCP reservation on the router). Some phones
-  cannot resolve `.local` names, so a literal IP is more reliable.
-- Some routers have **client isolation** on, which silently prevents two devices
-  on the same Wi-Fi from reaching each other. If the Pi is up, the phone is
-  online, and they still cannot see each other, check that setting.
+- The Pi hosts **its own Wi-Fi network** and keeps a fixed address (`10.42.0.1`),
+  so it never moves. Do not plan on a DHCP reservation: the network it was first
+  deployed on is an Android phone hotspot, which has no such setting.
+- Some phones cannot resolve `.local` names, so a literal IP is more reliable —
+  and the app is built around one.
+- With the Pi as the access point there is no client isolation to worry about, but
+  a phone that "helpfully" drops to mobile data on an internet-less network must
+  have that automatic switch turned off, or the app will lose the Pi.
 
 ---
 
@@ -204,7 +207,7 @@ The APK build, release signing and signature verification are in
 
 ## 5. Verification status
 
-**Verified locally on the development machine:** type-check, lint, and 113
+**Verified locally on the development machine:** type-check, lint, and 125
 automated tests across four suites — including that a `reading: null` response
 never reads as Live, that unapproved thresholds never read as Safe, that the
 password is stored as a bcrypt hash, that public registration always creates a

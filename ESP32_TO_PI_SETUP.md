@@ -62,8 +62,8 @@ that has been performed on it — no upload, calibration or field test.
 
 | Setting | What to enter |
 |---|---|
-| `AQSMS_WIFI_SSID` / `AQSMS_WIFI_PASSWORD` | The **2.4 GHz** network the Pi is on |
-| `AQSMS_PI_HOST` | The Pi's LAN address, e.g. `192.168.1.50` — the same value you typed in the phone app |
+| `AQSMS_WIFI_SSID` / `AQSMS_WIFI_PASSWORD` | The **2.4 GHz** network the Pi is on — when the Pi hosts its own Wi-Fi, this is the Pi's own SSID |
+| `AQSMS_PI_HOST` | The Pi's LAN address, e.g. `10.42.0.1` — the same value you typed in the phone app |
 | `AQSMS_PI_PORT` | `8443` for HTTPS, `8000` for the plain-HTTP dev server |
 | `AQSMS_USE_TLS` | `1` for HTTPS. `0` sends the device key and every measurement unencrypted |
 | `AQSMS_DEVICE_API_KEY` | The value printed by `setup_account.py --add-esp32-key` (section 3) |

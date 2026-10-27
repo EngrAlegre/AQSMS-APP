@@ -16,8 +16,8 @@ dependency, no domain name, and no port forwarding.**
 
 ## What you need
 
-- A Raspberry Pi on Raspberry Pi OS Bookworm (64-bit recommended), powered on
-  and connected to the same Wi-Fi the phone will use.
+- A Raspberry Pi on Raspberry Pi OS Bookworm (64-bit recommended), powered on.
+  It will either join the phone's Wi-Fi or become the Wi-Fi itself — see 3.2.
 - The `pi-server/` directory from this repository copied onto the Pi.
 - An Android phone with the AQSMS APK installed.
 - A way to run commands on the Pi: a keyboard and monitor, or SSH from another
@@ -294,47 +294,56 @@ the first is the Wi-Fi address and looks like `192.168.x.x` or `10.x.x.x`.
 Anything starting with `127.` is the Pi talking to itself — **not** what the
 phone uses.
 
-### 3.2 Why the address may change
+### 3.2 Make the address permanent
 
-By default a home router hands out addresses by DHCP lease, so the Pi can come
-back from a power cut with a different address — and the app, the certificate
-and every bookmark break together. Two ways to stop that:
+By default the Pi is a *client* of someone else's network, and DHCP hands out
+addresses on a lease — so the Pi can come back from a power cut with a different
+address, and the app, the certificate and every bookmark break together. The
+certificate names the exact address it was issued for, so there is no way to
+paper over it.
 
-**Reserve the address on the router (preferred).** In the router's admin page,
-find the DHCP client list, locate the Pi, and reserve its current address for
-its MAC address. The Pi keeps the same address and nothing on the Pi changes.
-If you do this, **generate the certificate after reserving**, so the address on
-the certificate is the permanent one.
+**Reserve the address on the router (if you have one).** In the router's admin
+page, find the DHCP client list, locate the Pi, and reserve its current address
+for its MAC address. Nothing on the Pi changes. **Generate the certificate after
+reserving**, so the address on the certificate is the permanent one.
 
-**Or set a static address on the Pi.** In Raspberry Pi OS Bookworm, edit the
-NetworkManager connection:
+**If there is no router to configure, make the Pi the network instead.** This is
+the case when the "network" is a phone hotspot: Android has no admin page and no
+reservation feature, and it invents a new subnet every time the hotspot restarts.
+Turning the Pi into an access point means it *is* the network, so its address is
+one you choose and it never moves again:
 
 ```bash
-nmcli connection show                     # note the connection name
-sudo nmcli connection modify "<name>" \
-  ipv4.method manual \
-  ipv4.addresses <pi-address>/24 \
-  ipv4.gateway <router-address> \
-  ipv4.dns <router-address>
-sudo nmcli connection up "<name>"
+sudo nmcli device wifi hotspot ifname wlan0 ssid <SSID> password '<password>'
+sudo nmcli con mod Hotspot connection.autoconnect yes
+sudo nmcli con mod Hotspot 802-11-wireless.band bg   # 2.4 GHz, for the ESP32
 ```
 
-Use an address **outside** the router's DHCP pool, or the router may hand the
-same address to another device.
+The Pi is then at **`10.42.0.1`** on that network. Two consequences:
+
+- **The Pi has no internet.** Nothing at runtime needs it, but run the `apt`
+  installs *first*, while it is still a client of another network.
+- **The Pi's clock drifts**, because it can no longer reach a time server. The
+  app is built for this: it judges staleness from an age that the Pi computes on
+  its own clock, never by comparing the Pi's timestamps against the phone's.
+
+Keep a keyboard and monitor as the way back in, and back up the current
+connection profiles (`sudo cp -r /etc/NetworkManager/system-connections ~/netbak`)
+before switching over, so the old state can be restored.
 
 ### 3.3 A name that survives an address change
 
-Raspberry Pi OS advertises `<hostname>.local` over mDNS. If the phone's browser
-can open `http://<hostname>.local:8443/health`, the app can use
-`https://<hostname>.local:8443` too — but only if that name is on the
-certificate. Add it when generating:
+Raspberry Pi OS advertises `<hostname>.local` over mDNS, and `make-cert.sh`
+already covers `DNS:<hostname>.local` (on a default install,
+`raspberrypi.local`). Extra names are accepted as further arguments:
 
 ```bash
-./make-cert.sh <pi-address> <hostname>.local
+./make-cert.sh <pi-address> <someOtherName>.local
 ```
 
-mDNS is less reliable than a fixed address on some phones and routers, so treat
-this as a convenience, not the primary plan.
+Treat this as a convenience, **not** the primary plan. Android does not resolve
+`.local` names, so the phone app still needs the literal address — a name only
+helps the board and your laptop. A fixed address is what makes both work.
 
 ---
 
@@ -368,10 +377,15 @@ misrepresent it.
 
 ### Before you tap Save
 
-Make sure the phone is on the **same Wi-Fi as the Pi**. Two different SSIDs —
-for example a `-Guest` network and the main one — are separate networks even
-when they come from the same router, and devices on them usually cannot see each
-other at all.
+Make sure the phone is on the **same network as the Pi**. If the Pi hosts its
+own Wi-Fi (3.2), that means joining the Pi's SSID. If the Pi is a client of a
+home router, two different SSIDs — for example a `-Guest` network and the main
+one — are separate networks even when they come from the same router, and devices
+on them usually cannot see each other at all.
+
+> If the Pi hosts its own Wi-Fi, that network has **no internet**. Turn off the
+> phone's "switch to mobile data automatically" setting, or Android will quietly
+> move the app off the Pi's network and every request will time out.
 
 Tap **Save address**, then **Test connection**. Account creation stays disabled
 until a test against the saved address has succeeded, so the account is always
